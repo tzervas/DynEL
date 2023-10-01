@@ -32,7 +32,7 @@ poetry install
 ### Basic Example
 
 ```python
-from my_module import dynel
+from dynel import *
 
 # Configure logging
 config = dynel.DynelConfig(context_level='medium', debug=True)
@@ -44,7 +44,7 @@ dynel.configure_logging(config)
 To use Dynel in other Python scripts, simply import it and configure:
 
 ```python
-from my_module import dynel
+from dynel import *
 
 config = dynel.DynelConfig()
 dynel.configure_logging(config)
