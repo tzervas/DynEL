@@ -1,0 +1,96 @@
+# Dynamic Error Logging Configuration
+#
+# This configuration file defines expected exceptions for different functions and controls
+# the debug mode for the dynamic error logging module (dynel.py).
+#
+# To configure expected exceptions, add function names as keys and lists of exception
+# class names as values. The module-level "__main__" key defines exceptions for the
+# main module.
+#
+# To enable debug mode, set "debug_mode" to true.
+#
+# Example:
+#   create_boto3_session:
+#     - botocore.exceptions.NoCredentialsError
+#     - botocore.exceptions.PartialCredentialsError
+#     - botocore.exceptions.SSLError
+#     - Exception
+#   backup_route53_to_s3:
+#     - botocore.exceptions.BotoCoreError
+#     - tqdm.TqdmKeyError
+#     - Exception
+#   __main__:
+#     - argparse.ArgumentError
+#     - Exception
+#   debug_mode: true
+
+# Dynamic Error Logging Configuration
+
+debug_mode: false
+
+create_boto3_session:
+  exceptions:
+    - botocore.exceptions.NoCredentialsError
+    - botocore.exceptions.PartialCredentialsError
+    - botocore.exceptions.SSLError
+    - botocore.exceptions.EndpointConnectionError
+    - Exception
+  custom_message: "Failed to create a boto3 session."
+  tags: [AWS, boto3, Session]
+
+generate_local_backup:
+  exceptions:
+    - botocore.exceptions.BotoCoreError
+    - FileNotFoundError
+    - PermissionError
+    - Exception
+  custom_message: "Failed to generate local backups for Route 53."
+  tags: [AWS, Route53, Backup]
+
+compress_backup_files:
+  exceptions:
+    - FileNotFoundError
+    - tarfile.TarError
+    - Exception
+  custom_message: "Compression of backup files failed."
+  tags: [Compression, Backup]
+
+configure_s3_bucket:
+  exceptions:
+    - botocore.exceptions.BotoCoreError
+    - botocore.exceptions.ParamValidationError
+    - Exception
+  custom_message: "S3 Bucket configuration failed."
+  tags: [AWS, S3, Configuration]
+
+find_or_create_s3_bucket:
+  exceptions:
+    - botocore.exceptions.BotoCoreError
+    - Exception
+  custom_message: "Could not find or create the S3 bucket."
+  tags: [AWS, S3, Bucket]
+
+upload_to_s3:
+  exceptions:
+    - botocore.exceptions.S3UploadFailedError
+    - Exception
+  custom_message: "Uploading to S3 bucket failed."
+  tags: [AWS, S3, Upload]
+
+backup_route53_to_s3:
+  exceptions:
+    - botocore.exceptions.BotoCoreError
+    - tqdm.TqdmKeyError
+    - tqdm.TqdmWarning
+    - json.JSONDecodeError
+  custom_message: "Route 53 backup to S3 failed."
+  tags: [AWS, Route53, S3, Backup]
+
+__main__:
+  exceptions:
+    - argparse.ArgumentError
+    - argparse.ArgumentTypeError
+    - FileNotFoundError
+    - PermissionError
+  custom_message: "Main function encountered an error."
+  tags: [Main, CLI]
