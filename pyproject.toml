@@ -1,0 +1,18 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "DynEL"
+version = "0.1.0"
+description = "A Python project."
+authors = ["Tyler Zervas <albedo.black.1@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+loguru = "^0.5.3"
+yaml = "^5.4.1"
+toml = "^0.10.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
