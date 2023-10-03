@@ -195,7 +195,7 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
 
 def parse_command_line_args() -> Dict[str, Any]:
     """Parses command-line arguments and returns them as a dictionary.
-    
+
     Returns:
         Dict[str, Any]: Dictionary of parsed command-line arguments.
     """
