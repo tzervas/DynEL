@@ -128,7 +128,7 @@ Fork the repository and use a feature branch. Pull requests are welcome.
 
 ## License
 
-See `LICENSE` for more information.
+DynEL is licensed under the MIT license; see `LICENSE` for more information.
 
 ## Contact
 
