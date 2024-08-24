@@ -1,4 +1,4 @@
-# Dynel: Dynamic Error Logging Module
+# DynEL: Dynamic Error Logging Module
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@
 
 ## Description
 
-Dynel is a dynamic and configurable logging and error-handling utility built with Python. It uses the Loguru library and supports both human-readable and machine-readable (JSON) log formats.
+DynEL is a dynamic and configurable logging and error-handling utility built with Python. It uses the Loguru library and supports both human-readable and machine-readable (JSON) log formats.
 
 ## Installation
 
@@ -41,7 +41,7 @@ dynel.configure_logging(config)
 
 ### Using with Other Scripts
 
-To use Dynel in other Python scripts, simply import it and configure:
+To use DynEL in other Python scripts, simply import it and configure:
 
 ```python
 from dynel import *
@@ -50,7 +50,7 @@ config = dynel.DynelConfig()
 dynel.configure_logging(config)
 ```
 
-You can also attach Dynel's exception handler to other modules:
+You can also attach DynEL's exception handler to other modules:
 
 ```python
 import another_module
@@ -59,13 +59,13 @@ dynel.module_exception_handler(config, another_module)
 
 ### CLI Arguments
 
-Dynel accepts the following command-line arguments:
+DynEL accepts the following command-line arguments:
 
 - `--context-level`: Sets the context level (`min`, `minimal`, `med`, `medium`, `det`, `detailed`).
 - `--debug`: Enables debug mode.
 - `--no-formatting`: Disables special formatting.
 
-**Note**: When integrating Dynel into other scripts, these CLI arguments are reserved.
+**Note**: When integrating DynEL into other scripts, these CLI arguments are reserved.
 
 ## Features
 
@@ -76,7 +76,7 @@ Dynel accepts the following command-line arguments:
 
 ## Configuration (`dynel_config`)
 
-Dynel allows you to set configurations through `dynel_config.[json/yaml/yml/toml]`:
+DynEL allows you to set configurations through `dynel_config.[json/yaml/yml/toml]`:
 
 ### JSON
 
