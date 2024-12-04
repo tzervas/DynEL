@@ -134,7 +134,7 @@ DynEL is licensed under the MIT license; see `LICENSE` for more information.
 
 - **Author**: Tyler Zervas
 - **Email**: albedo.black.1@gmail.com
-- **GitLab**: [Your GitLab Profile](#)
+- **GitLab**: [albedo_black](https://gitlab.com/albedo_black)
 
 ## Troubleshooting
 
