@@ -19,7 +19,7 @@
 
 ## Description
 
-DynEL is a dynamic and configurable logging and error-handling utility built with Python. It uses the Loguru library and supports both human-readable and machine-readable (JSON) log formats.
+DynEL is a dynamic and configurable logging and error-handling utility built with Python. It uses the [Loguru library](https://github.com/Delgan/loguru) and supports both human-readable and machine-readable (JSON) log formats.
 
 ## Installation
 
@@ -133,8 +133,8 @@ DynEL is licensed under the MIT license; see `LICENSE` for more information.
 ## Contact
 
 - **Author**: Tyler Zervas
-- **Email**: albedo.black.1@gmail.com
-- **GitLab**: [albedo_black](https://gitlab.com/albedo_black)
+- **GitLab**: [tzervas](https://github.com/tzervas)
+- **X**: [@vec_wt_tech](https://x.com/vec_wt_tech)
 
 ## Troubleshooting
 
@@ -143,4 +143,3 @@ This section can be updated over time with common issues and their resolutions.
 ## Acknowledgments
 
 Special thanks to the Loguru library for simplifying Python logging.
-
