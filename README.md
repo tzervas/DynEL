@@ -21,13 +21,26 @@
 
 DynEL is a dynamic and configurable logging and error-handling utility built with Python. It uses the [Loguru library](https://github.com/Delgan/loguru) and supports both human-readable and machine-readable (JSON) log formats.
 
-The long term aim of this project is married to the [Periohelion Signal Processor (PeSPr)]()
+The long-term aim of this project is married to the [Perihelion Signal Processor (PeSPr)](https://github.com/tzervas/pespr). <!-- Update with actual link if different -->
 
 ## Installation
 
-```bash
-poetry install
-```
+To install DynEL, follow these steps:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tzervas/dynel.git
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd dynel
+   ```
+3. Use [UV](https://docs.astral.sh/uv/) to install dependencies:
+   ```bash
+   uv sync
+   ```
+
+**Note:** Ensure [UV](https://docs.astral.sh/uv/) is installed. See the [installation guide](https://docs.astral.sh/uv/getting-started/installation/) for instructions.
 
 ## Usage
 
@@ -120,13 +133,17 @@ tags = ["urgent", "db"]
 
 ## Testing
 
+Run tests with:
+
 ```bash
 tox
 ```
 
-## Contributing
+**Note**: Tox is used to run tests across multiple environments, including pytest for unit testing.
 
-Please fork the repository and use a feature branch. Pull requests are welcome.
+## Contribution
+
+Contributions are welcome! Please see the [Developer Guide](docs/devel-docs/developer_guide.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
@@ -135,8 +152,12 @@ DynEL is licensed under the MIT license; see [LICENSE](LICENSE) for more informa
 ## Contact
 
 - **Author**: Tyler Zervas
-- **GitLab**: [tzervas](https://github.com/tzervas)
+- **GitHub**: [tzervas](https://github.com/tzervas)
 - **X**: [@vec_wt_tech](https://x.com/vec_wt_tech)
+
+## Troubleshooting
+
+If you encounter any issues, please check the [issue tracker](https://github.com/tzervas/dynel/issues) or contact the author.
 
 ## Acknowledgments
 
