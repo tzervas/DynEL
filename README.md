@@ -130,7 +130,7 @@ Please fork the repository and use a feature branch. Pull requests are welcome.
 
 ## License
 
-DynEL is licensed under the MIT license; see `LICENSE` for more information.
+DynEL is licensed under the MIT license; see [LICENSE](LICENSE) for more information.
 
 ## Contact
 
