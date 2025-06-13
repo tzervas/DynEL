@@ -124,7 +124,7 @@ tags = ["urgent", "db"]
 tox
 ```
 
-## Contribution
+## Contributing
 
 Please fork the repository and use a feature branch. Pull requests are welcome.
 
@@ -137,10 +137,6 @@ DynEL is licensed under the MIT license; see `LICENSE` for more information.
 - **Author**: Tyler Zervas
 - **GitLab**: [tzervas](https://github.com/tzervas)
 - **X**: [@vec_wt_tech](https://x.com/vec_wt_tech)
-
-## Troubleshooting
-
-This section can be updated over time with common issues and their resolutions.
 
 ## Acknowledgments
 
