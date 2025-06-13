@@ -21,6 +21,8 @@
 
 DynEL is a dynamic and configurable logging and error-handling utility built with Python. It uses the [Loguru library](https://github.com/Delgan/loguru) and supports both human-readable and machine-readable (JSON) log formats.
 
+The long term aim of this project is married to the [Periohelion Signal Processor (PeSPr)]()
+
 ## Installation
 
 ```bash
@@ -124,7 +126,7 @@ tox
 
 ## Contribution
 
-Fork the repository and use a feature branch. Pull requests are welcome.
+Please fork the repository and use a feature branch. Pull requests are welcome.
 
 ## License
 
