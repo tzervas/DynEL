@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
 from src.dynel import DynelConfig, configure_logging, parse_command_line_args, ContextLevel, handle_exception, module_exception_handler # Added module_exception_handler
 
+
 # --- Test Data ---
 VALID_CONFIG_DATA_DICT = {
     "debug_mode": True,
@@ -220,7 +221,6 @@ def test_parse_command_line_args_custom(cli_arg, expected_key, expected_value, c
     with patch('sys.argv', ['dynel.py'] + cli_arg):
          parsed_args = parse_command_line_args()
     assert parsed_args[expected_key] == expected_value
-
 
 # --- Tests for handle_exception ---
 
@@ -566,21 +566,3 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
     # Re-add a default console sink if other tests might rely on seeing output,
     # or ensure all tests manage logger state independently.
     # For now, leave it clean. If other tests fail, this might be a point to revisit.
-
-
-# --- Placeholder for future tests from original file ---
-# @pytest.mark.parametrize("config_format", SUPPORTED_CONFIG_FORMATS)
-# def test_config_driven_testing(load_config, config_format):
-#     config = load_config
-#     for error_type, settings in config.get('error_types', {}).items():
-#         assert 'level' in settings
-#         assert 'message' in settings
-
-# def test_dynamic_assertions(load_config):
-#     config = load_config
-#     for key, value in config.items():
-#         if key == 'debug_mode':
-#             assert isinstance(value, bool)
-#         # ... additional dynamic assertions
-
-# Additional Tests for Methods in dynel.py, Exception Handling, Context, Debug Mode, Panic Mode
