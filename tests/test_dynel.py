@@ -15,6 +15,7 @@ from src.dynel import (
     module_exception_handler,
 )  # Added module_exception_handler
 
+
 # --- Test Data ---
 VALID_CONFIG_DATA_DICT = {
     "debug_mode": True,
@@ -289,7 +290,6 @@ def test_parse_command_line_args_custom(
     with patch("sys.argv", ["dynel.py"] + cli_arg):
         parsed_args = parse_command_line_args()
     assert parsed_args[expected_key] == expected_value
-
 
 # --- Tests for handle_exception ---
 
