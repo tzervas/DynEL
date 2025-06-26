@@ -1,10 +1,12 @@
 import pytest
+import pytest
 import yaml
 import json
 import toml
+import inspect # Added for inspect.isclass
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
-from src.dynel import DynelConfig, configure_logging, parse_command_line_args, ContextLevel, handle_exception # Adjusted import
+from src.dynel import DynelConfig, configure_logging, parse_command_line_args, ContextLevel, handle_exception, module_exception_handler # Added module_exception_handler
 
 # --- Test Data ---
 VALID_CONFIG_DATA_DICT = {
@@ -402,6 +404,168 @@ def test_handle_exception_panic_mode(dynel_config_instance, captured_logs):
     assert f"PANIC MODE ENABLED: Exiting after handling exception in {func_name}." in panic_log["message"]
 
     mock_sys_exit.assert_called_once_with(1)
+
+# --- Tests for module_exception_handler ---
+
+# Dummy module for testing module_exception_handler
+DUMMY_MODULE_CONTENT = """
+def func_that_works():
+    return "worked"
+
+def func_that_raises_value_error():
+    raise ValueError("Dummy ValueError")
+
+def func_that_raises_type_error():
+    raise TypeError("Dummy TypeError")
+
+_a_private_variable = True # Should not be wrapped
+
+class SomeClass: # Should not be wrapped
+    def method(self):
+        raise AttributeError("Dummy AttributeError in class")
+"""
+
+@pytest.fixture
+def dummy_module(tmp_path):
+    """Creates a dummy module file and imports it."""
+    module_path = tmp_path / "dummy_module_for_dynel_test.py"
+    module_path.write_text(DUMMY_MODULE_CONTENT)
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("dummy_module_for_dynel_test", module_path)
+    imported_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imported_module)
+    return imported_module
+
+def test_module_exception_handler_wraps_functions(dynel_config_instance, dummy_module):
+    config = dynel_config_instance
+
+    # Keep a reference to original functions to reset if necessary, though for this test structure,
+    # the dummy_module is fresh each time due to fixture scope.
+    # original_value_error_func = dummy_module.func_that_raises_value_error
+    # original_works_func = dummy_module.func_that_works
+
+    with patch('src.dynel.dynel.handle_exception') as mock_handle_exception:
+        mock_handle_exception.return_value = None # Ensure mock doesn't suppress re-raise
+
+        module_exception_handler(config, dummy_module) # Corrected: Call module_exception_handler
+
+        # Test that wrapped function still works if no error
+        assert dummy_module.func_that_works() == "worked"
+
+        # Test that error in wrapped function calls our handler
+        with pytest.raises(ValueError): # Loguru's @logger.catch will re-raise by default
+            dummy_module.func_that_raises_value_error()
+
+        mock_handle_exception.assert_called_once() # Use the correct mock name
+        args, _ = mock_handle_exception.call_args
+        assert args[0] == config
+        assert isinstance(args[1], ValueError)
+        assert str(args[1]) == "Dummy ValueError"
+
+        # Check that non-function attributes are not wrapped/changed
+        assert dummy_module._a_private_variable is True
+        assert inspect.isclass(dummy_module.SomeClass) # Check it's still a class
+
+        # Check that methods within classes are not wrapped by module_exception_handler directly
+        instance = dummy_module.SomeClass()
+        with pytest.raises(AttributeError, match="Dummy AttributeError in class"):
+            instance.method()
+        # mock_handle_exception should still be called once from the module-level function
+        mock_handle_exception.assert_called_once()
+
+
+# --- Tests for Log File Output ---
+
+def test_log_file_output_formats(tmp_path, monkeypatch):
+    config = DynelConfig(context_level="med") # Use medium context for some local_vars
+
+    # Configure logging to use temporary files
+    log_file_txt = tmp_path / "output.log"
+    log_file_json = tmp_path / "output.json"
+
+    # Patch the logger.add calls within configure_logging to use these temp files
+    # This is a bit more involved as configure_logging removes all handlers then adds new ones.
+    # We can patch 'logger.add' and inspect its calls, or patch the sink names directly if possible.
+    # A simpler way for this test: modify the configure_logging function temporarily for the test,
+    # or have DynelConfig allow specifying log paths.
+    # For now, let's patch 'logger.add'.
+
+    from src.dynel.dynel import logger as dynel_logger # Import the logger instance
+
+    # We need to capture what `logger.add` is called with.
+    # The `captured_logs` fixture reconfigures the logger. We need to manage this carefully.
+    # Let's create a specific logger configuration for this test.
+
+    dynel_logger.remove() # Clear existing handlers (like from captured_logs fixture if it ran)
+    dynel_logger.add(log_file_txt, format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message} | {extra}", level="DEBUG")
+    dynel_logger.add(log_file_json, serialize=True, level="DEBUG")
+
+    error_to_raise = IndexError("Test index out of bounds")
+    func_name = "function_writing_to_log_files"
+
+    # Mock inspect.stack to control func_name in handle_exception
+    # and inspect.currentframe to provide some locals
+    mock_frame_for_locals = Mock()
+    mock_frame_for_locals.f_locals = {"alpha": 1, "beta": "two"}
+
+    with patch('src.dynel.dynel.inspect.stack') as mock_inspect_stack, \
+         patch('src.dynel.dynel.inspect.currentframe', return_value=mock_frame_for_locals):
+
+        mock_caller_frame_tuple = (Mock(), "test_file.py", 100, func_name, ["some_code"], 0)
+        mock_inspect_stack.return_value = [Mock(), mock_caller_frame_tuple]
+
+        try:
+            raise error_to_raise
+        except IndexError as e:
+            handle_exception(config, e)
+
+    # Verify text log content
+    assert log_file_txt.exists()
+    txt_content = log_file_txt.read_text()
+    assert "ERROR" in txt_content # Level
+    assert f"{func_name}" in txt_content # Function name from handle_exception's perspective
+    assert "Exception caught in" in txt_content
+    assert "IndexError: Test index out of bounds" in txt_content # Exception message
+    assert "'alpha': 1" in txt_content # Part of local_vars
+    assert "'beta': 'two'" in txt_content # Part of local_vars
+    assert "timestamp" in txt_content # From custom_context
+
+    # Verify JSON log content
+    assert log_file_json.exists()
+    json_content = log_file_json.read_text()
+    # Each line in the JSON log file is a separate JSON object
+    # For this test, we expect one log entry from handle_exception
+    log_entry = None
+    for line in json_content.strip().split('\n'):
+        if line: # Handle potential empty lines if any
+            parsed_line = json.loads(line)
+            # Look for the log entry from our specific function
+            if parsed_line.get("record", {}).get("function") == "handle_exception":
+                log_entry = parsed_line["record"]
+                break
+
+    assert log_entry is not None, "Log entry from handle_exception not found in JSON log"
+
+    assert log_entry["level"]["name"] == "ERROR"
+    assert f"Exception caught in {func_name}" in log_entry["message"]
+
+    exception_details = log_entry["exception"]
+    assert exception_details["type"] == "IndexError"
+    assert "Test index out of bounds" in exception_details["value"]
+    assert exception_details["traceback"] # Check traceback exists
+
+    extra_details = log_entry["extra"]
+    assert "timestamp" in extra_details
+    assert "'alpha': 1" in extra_details["local_vars"]
+    assert "'beta': 'two'" in extra_details["local_vars"]
+
+    # Clean up global logger state for other tests
+    from src.dynel.dynel import logger as dynel_logger # Ensure it's in scope
+    dynel_logger.remove()
+    # Re-add a default console sink if other tests might rely on seeing output,
+    # or ensure all tests manage logger state independently.
+    # For now, leave it clean. If other tests fail, this might be a point to revisit.
 
 
 # --- Placeholder for future tests from original file ---

@@ -274,7 +274,16 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
     """
     for name, obj in inspect.getmembers(module):
         if inspect.isfunction(obj):
-            wrapped_function = logger.catch(lambda e: handle_exception(config, e))(obj)
+
+            def _onerror_handler(exc_or_result):
+                if isinstance(exc_or_result, Exception):
+                    handle_exception(config, exc_or_result) # Call it once
+                    raise exc_or_result # Explicitly re-raise
+                else:
+                    # This was a successful function call, return its result
+                    return exc_or_result
+
+            wrapped_function = logger.catch(onerror=_onerror_handler)(obj) # reraise=True is default
             setattr(module, name, wrapped_function)
             if config.DEBUG_MODE:
                 logging.debug("Wrapped function: %s", wrapped_function)
