@@ -3,16 +3,34 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "DynEL"
-version = "0.1.0"
-description = "A Python project."
-authors = ["Tyler Zervas <albedo.black.1@gmail.com>"]
+name = "dynel" # Changed to lowercase for packaging conventions
+version = "0.1.0" # Initial development version
+description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
+authors = ["Tyler Zervas <tz-dev@vectorweight.com>"] # Updated email
+readme = "README.md" # Link to README
+license = "MIT" # Assuming MIT from the LICENSE file
+keywords = ["logging", "error handling", "exceptions", "loguru", "dynel"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Logging",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [tool.poetry.dependencies]
-python = "^3.7"
-loguru = "^0.5.3"
-yaml = "^5.4.1"
+python = "^3.7" # Sticking with ^3.7 for now
+loguru = "^0.7.0"  # Updated to a more recent version of Loguru
+PyYAML = "^6.0"   # Corrected package name and updated version
 toml = "^0.10.2"
 
 [tool.poetry.dev-dependencies]
-pytest = "^6.2"
+pytest = "^7.0" # Updated pytest to a more recent version
+# Potentially add other dev dependencies like black, flake8, mypy, pytest-cov later
