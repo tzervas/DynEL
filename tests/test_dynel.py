@@ -1,10 +1,13 @@
 import pytest
+import pytest
 import yaml
 import json
 import toml
+import inspect # Added for inspect.isclass
 from pathlib import Path
 from unittest.mock import patch, Mock, MagicMock
-from src.dynel import DynelConfig, configure_logging, parse_command_line_args, ContextLevel, handle_exception # Adjusted import
+from src.dynel import DynelConfig, configure_logging, parse_command_line_args, ContextLevel, handle_exception, module_exception_handler # Added module_exception_handler
+
 
 # --- Test Data ---
 VALID_CONFIG_DATA_DICT = {
@@ -219,20 +222,347 @@ def test_parse_command_line_args_custom(cli_arg, expected_key, expected_value, c
          parsed_args = parse_command_line_args()
     assert parsed_args[expected_key] == expected_value
 
+# --- Tests for handle_exception ---
 
-# --- Placeholder for future tests from original file ---
-# @pytest.mark.parametrize("config_format", SUPPORTED_CONFIG_FORMATS)
-# def test_config_driven_testing(load_config, config_format):
-#     config = load_config
-#     for error_type, settings in config.get('error_types', {}).items():
-#         assert 'level' in settings
-#         assert 'message' in settings
+@pytest.fixture
+def captured_logs():
+    """Fixture to capture Loguru logs in a list."""
+    log_capture_list = []
 
-# def test_dynamic_assertions(load_config):
-#     config = load_config
-#     for key, value in config.items():
-#         if key == 'debug_mode':
-#             assert isinstance(value, bool)
-#         # ... additional dynamic assertions
+    def capturing_sink(message):
+        log_capture_list.append(message.record) # Store the full record for detailed assertions
 
-# Additional Tests for Methods in dynel.py, Exception Handling, Context, Debug Mode, Panic Mode
+    # Ensure default logger is clean and add our sink
+    # Note: This might interfere if other tests also manipulate the global logger.
+    # For isolated tests, this is okay. Consider per-test logger configuration if issues arise.
+    from src.dynel.dynel import logger as dynel_logger # get the actual logger instance
+
+    dynel_logger.remove() # Remove all handlers
+    handler_id = dynel_logger.add(capturing_sink, format="{message}") # Basic format, we inspect record
+
+    yield log_capture_list
+
+    dynel_logger.remove(handler_id)
+    # Optionally, re-add default handlers if needed by other tests, or ensure tests clean up.
+    # For now, assuming test isolation or that subsequent tests will reconfigure.
+
+
+def test_handle_exception_basic_logging(dynel_config_instance, captured_logs):
+    config = dynel_config_instance
+    error_to_raise = ValueError("Test error for basic logging")
+
+    # Mock inspect.stack() to control func_name
+    with patch('inspect.stack') as mock_stack:
+        mock_function_name = "mock_function_raising_error"
+        # inspect.stack()[1] should be a tuple/list where index 3 is the function name
+        mock_caller_frame_tuple = (Mock(), "filename_mock", 123, mock_function_name, ["code_line_mock"], 0)
+        mock_stack.return_value = [
+            Mock(), # Frame for handle_exception itself
+            mock_caller_frame_tuple # Frame for the caller of handle_exception
+        ]
+
+        try:
+            raise error_to_raise
+        except ValueError as e:
+            # Directly call handle_exception as if it was called from within the except block
+            # of mock_function_raising_error
+            handle_exception(config, e)
+
+    assert len(captured_logs) == 1
+    log_record = captured_logs[0]
+
+    assert log_record["level"].name == "ERROR" # Loguru's .exception logs at ERROR level
+    assert "Exception caught in mock_function_raising_error" in log_record["message"]
+    assert log_record['exception'] is not None
+    assert "Test error for basic logging" in str(log_record['exception'].value) # Corrected assertion
+    assert "timestamp" in log_record["extra"]
+
+
+def test_handle_exception_with_custom_message_and_tags(dynel_config_instance, captured_logs):
+    config = dynel_config_instance
+    func_name = "my_specific_function"
+    custom_msg = "A very specific error occurred!"
+    tags = ["database", "critical"]
+
+    config.EXCEPTION_CONFIG = {
+        func_name: {
+            "exceptions": [TypeError],
+            "custom_message": custom_msg,
+            "tags": tags
+        }
+    }
+    error_to_raise = TypeError("Something went wrong with types")
+
+    with patch('inspect.stack') as mock_stack:
+        # inspect.stack()[1] should be a tuple/list where index 3 is the function name
+        mock_caller_frame_tuple = (Mock(), "filename_mock", 123, func_name, ["code_line_mock"], 0)
+        mock_stack.return_value = [
+            Mock(), # Frame for handle_exception itself
+            mock_caller_frame_tuple # Frame for the caller of handle_exception
+        ]
+
+        try:
+            raise error_to_raise
+        except TypeError as e:
+            handle_exception(config, e)
+
+    assert len(captured_logs) == 1
+    log_record = captured_logs[0]
+
+    assert log_record["level"].name == "ERROR"
+    expected_log_message = f"Exception caught in {func_name} - Custom Message: {custom_msg}"
+    assert log_record["message"] == expected_log_message # Exact message check
+    assert log_record['exception'] is not None
+    assert "Something went wrong with types" in str(log_record['exception'].value) # Corrected assertion
+    assert log_record["extra"]["tags"] == tags
+    assert "timestamp" in log_record["extra"]
+
+
+@pytest.mark.parametrize("level_str, expected_keys_in_extra", [
+    ("min", ["timestamp"]),
+    ("med", ["timestamp", "local_vars"]),
+    ("det", ["timestamp", "local_vars", "free_memory", "cpu_count", "env_details"])
+    # Note: env_details might be very large, consider mocking os.environ for tests
+])
+def test_handle_exception_context_levels(level_str, expected_keys_in_extra, captured_logs):
+    # For 'det' level, mock os.environ to avoid logging actual environment
+    mock_os_environ = {"TEST_VAR": "test_value"}
+
+    with patch('os.environ', mock_os_environ), \
+         patch('src.dynel.dynel.inspect') as mock_dynel_inspect: # Patch inspect used in dynel.py
+
+        config = DynelConfig(context_level=level_str)
+        mock_function_name = "context_level_test_func"
+
+        # Setup for inspect.stack()[1][3] to get mock_function_name
+        mock_caller_frame_tuple = (Mock(), "filename_mock", 123, mock_function_name, ["code_line_mock"], 0)
+        mock_dynel_inspect.stack.return_value = [
+            Mock(), # Frame for handle_exception
+            mock_caller_frame_tuple
+        ]
+
+        # Setup for inspect.currentframe().f_locals
+        mock_frame_for_locals = Mock() # This is the mock frame object
+        mock_frame_for_locals.f_locals = {"var1": 10, "var2": "test"} # Assign its f_locals
+        mock_dynel_inspect.currentframe.return_value = mock_frame_for_locals # Make inspect.currentframe() return this mock frame
+
+        error_to_raise = ConnectionError("A connection problem")
+
+        try:
+            raise error_to_raise
+        except ConnectionError as e:
+            handle_exception(config, e)
+
+    assert len(captured_logs) == 1
+    log_record = captured_logs[0]
+
+    assert log_record["level"].name == "ERROR"
+    assert f"Exception caught in {mock_function_name}" in log_record["message"] # Use mock_function_name
+    assert log_record['exception'] is not None
+    assert "A connection problem" in str(log_record['exception'].value) # Corrected assertion
+
+    for key in expected_keys_in_extra:
+        assert key in log_record["extra"]
+        if key == "local_vars":
+            assert str({"var1": 10, "var2": "test"}) in log_record["extra"]["local_vars"]
+        if key == "env_details" and level_str == "det": # Only check if env_details was expected
+             assert log_record["extra"]["env_details"] == mock_os_environ
+
+
+def test_handle_exception_panic_mode(dynel_config_instance, captured_logs):
+    config = dynel_config_instance
+    config.PANIC_MODE = True
+    error_to_raise = RuntimeError("Critical system failure!")
+    func_name = "panicking_function"
+
+    with patch('inspect.stack') as mock_stack, \
+         patch('sys.exit') as mock_sys_exit: # Patch sys.exit
+
+        # inspect.stack()[1] should be a tuple/list where index 3 is the function name
+        mock_caller_frame_tuple = (Mock(), "filename_mock", 123, func_name, ["code_line_mock"], 0)
+        mock_stack.return_value = [
+            Mock(), # Frame for handle_exception itself
+            mock_caller_frame_tuple # Frame for the caller of handle_exception
+        ]
+
+        try:
+            raise error_to_raise
+        except RuntimeError as e:
+            # handle_exception will call sys.exit, so we expect pytest.raises(SystemExit)
+            # However, sys.exit is patched, so the test won't actually exit.
+            # We call it directly and check mock_sys_exit.
+            handle_exception(config, e)
+
+    assert len(captured_logs) == 2 # One for the exception, one for the panic critical message
+
+    exception_log = captured_logs[0] # Assuming first log is the exception itself
+    assert exception_log["level"].name == "ERROR"
+    assert f"Exception caught in {func_name}" in exception_log["message"]
+
+    panic_log = captured_logs[1] # Assuming second log is the panic message
+    assert panic_log["level"].name == "CRITICAL"
+    assert f"PANIC MODE ENABLED: Exiting after handling exception in {func_name}." in panic_log["message"]
+
+    mock_sys_exit.assert_called_once_with(1)
+
+# --- Tests for module_exception_handler ---
+
+# Dummy module for testing module_exception_handler
+DUMMY_MODULE_CONTENT = """
+def func_that_works():
+    return "worked"
+
+def func_that_raises_value_error():
+    raise ValueError("Dummy ValueError")
+
+def func_that_raises_type_error():
+    raise TypeError("Dummy TypeError")
+
+_a_private_variable = True # Should not be wrapped
+
+class SomeClass: # Should not be wrapped
+    def method(self):
+        raise AttributeError("Dummy AttributeError in class")
+"""
+
+@pytest.fixture
+def dummy_module(tmp_path):
+    """Creates a dummy module file and imports it."""
+    module_path = tmp_path / "dummy_module_for_dynel_test.py"
+    module_path.write_text(DUMMY_MODULE_CONTENT)
+
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("dummy_module_for_dynel_test", module_path)
+    imported_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imported_module)
+    return imported_module
+
+def test_module_exception_handler_wraps_functions(dynel_config_instance, dummy_module):
+    config = dynel_config_instance
+
+    # Keep a reference to original functions to reset if necessary, though for this test structure,
+    # the dummy_module is fresh each time due to fixture scope.
+    # original_value_error_func = dummy_module.func_that_raises_value_error
+    # original_works_func = dummy_module.func_that_works
+
+    with patch('src.dynel.dynel.handle_exception') as mock_handle_exception:
+        mock_handle_exception.return_value = None # Ensure mock doesn't suppress re-raise
+
+        module_exception_handler(config, dummy_module) # Corrected: Call module_exception_handler
+
+        # Test that wrapped function still works if no error
+        assert dummy_module.func_that_works() == "worked"
+
+        # Test that error in wrapped function calls our handler
+        with pytest.raises(ValueError): # Loguru's @logger.catch will re-raise by default
+            dummy_module.func_that_raises_value_error()
+
+        mock_handle_exception.assert_called_once() # Use the correct mock name
+        args, _ = mock_handle_exception.call_args
+        assert args[0] == config
+        assert isinstance(args[1], ValueError)
+        assert str(args[1]) == "Dummy ValueError"
+
+        # Check that non-function attributes are not wrapped/changed
+        assert dummy_module._a_private_variable is True
+        assert inspect.isclass(dummy_module.SomeClass) # Check it's still a class
+
+        # Check that methods within classes are not wrapped by module_exception_handler directly
+        instance = dummy_module.SomeClass()
+        with pytest.raises(AttributeError, match="Dummy AttributeError in class"):
+            instance.method()
+        # mock_handle_exception should still be called once from the module-level function
+        mock_handle_exception.assert_called_once()
+
+
+# --- Tests for Log File Output ---
+
+def test_log_file_output_formats(tmp_path, monkeypatch):
+    config = DynelConfig(context_level="med") # Use medium context for some local_vars
+
+    # Configure logging to use temporary files
+    log_file_txt = tmp_path / "output.log"
+    log_file_json = tmp_path / "output.json"
+
+    # Patch the logger.add calls within configure_logging to use these temp files
+    # This is a bit more involved as configure_logging removes all handlers then adds new ones.
+    # We can patch 'logger.add' and inspect its calls, or patch the sink names directly if possible.
+    # A simpler way for this test: modify the configure_logging function temporarily for the test,
+    # or have DynelConfig allow specifying log paths.
+    # For now, let's patch 'logger.add'.
+
+    from src.dynel.dynel import logger as dynel_logger # Import the logger instance
+
+    # We need to capture what `logger.add` is called with.
+    # The `captured_logs` fixture reconfigures the logger. We need to manage this carefully.
+    # Let's create a specific logger configuration for this test.
+
+    dynel_logger.remove() # Clear existing handlers (like from captured_logs fixture if it ran)
+    dynel_logger.add(log_file_txt, format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message} | {extra}", level="DEBUG")
+    dynel_logger.add(log_file_json, serialize=True, level="DEBUG")
+
+    error_to_raise = IndexError("Test index out of bounds")
+    func_name = "function_writing_to_log_files"
+
+    # Mock inspect.stack to control func_name in handle_exception
+    # and inspect.currentframe to provide some locals
+    mock_frame_for_locals = Mock()
+    mock_frame_for_locals.f_locals = {"alpha": 1, "beta": "two"}
+
+    with patch('src.dynel.dynel.inspect.stack') as mock_inspect_stack, \
+         patch('src.dynel.dynel.inspect.currentframe', return_value=mock_frame_for_locals):
+
+        mock_caller_frame_tuple = (Mock(), "test_file.py", 100, func_name, ["some_code"], 0)
+        mock_inspect_stack.return_value = [Mock(), mock_caller_frame_tuple]
+
+        try:
+            raise error_to_raise
+        except IndexError as e:
+            handle_exception(config, e)
+
+    # Verify text log content
+    assert log_file_txt.exists()
+    txt_content = log_file_txt.read_text()
+    assert "ERROR" in txt_content # Level
+    assert f"{func_name}" in txt_content # Function name from handle_exception's perspective
+    assert "Exception caught in" in txt_content
+    assert "IndexError: Test index out of bounds" in txt_content # Exception message
+    assert "'alpha': 1" in txt_content # Part of local_vars
+    assert "'beta': 'two'" in txt_content # Part of local_vars
+    assert "timestamp" in txt_content # From custom_context
+
+    # Verify JSON log content
+    assert log_file_json.exists()
+    json_content = log_file_json.read_text()
+    # Each line in the JSON log file is a separate JSON object
+    # For this test, we expect one log entry from handle_exception
+    log_entry = None
+    for line in json_content.strip().split('\n'):
+        if line: # Handle potential empty lines if any
+            parsed_line = json.loads(line)
+            # Look for the log entry from our specific function
+            if parsed_line.get("record", {}).get("function") == "handle_exception":
+                log_entry = parsed_line["record"]
+                break
+
+    assert log_entry is not None, "Log entry from handle_exception not found in JSON log"
+
+    assert log_entry["level"]["name"] == "ERROR"
+    assert f"Exception caught in {func_name}" in log_entry["message"]
+
+    exception_details = log_entry["exception"]
+    assert exception_details["type"] == "IndexError"
+    assert "Test index out of bounds" in exception_details["value"]
+    assert exception_details["traceback"] # Check traceback exists
+
+    extra_details = log_entry["extra"]
+    assert "timestamp" in extra_details
+    assert "'alpha': 1" in extra_details["local_vars"]
+    assert "'beta': 'two'" in extra_details["local_vars"]
+
+    # Clean up global logger state for other tests
+    from src.dynel.dynel import logger as dynel_logger # Ensure it's in scope
+    dynel_logger.remove()
+    # Re-add a default console sink if other tests might rely on seeing output,
+    # or ensure all tests manage logger state independently.
+    # For now, leave it clean. If other tests fail, this might be a point to revisit.
