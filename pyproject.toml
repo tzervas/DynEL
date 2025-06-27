@@ -1,18 +1,253 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-name = "DynEL"
-version = "0.1.0"
-description = "A Python project."
-authors = ["Tyler Zervas <albedo.black.1@gmail.com>"]
+[project]
+name = "dynel"
+version = "0.1.0" # Will be updated by Hatchling/release process later
+description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+license-files = ["LICENSE"] # Added as per spec
+authors = [
+    {name = "Tyler Zervas", email = "tz-dev@vectorweight.com"},
+]
+keywords = ["logging", "error handling", "exceptions", "loguru", "dynel", "structured logging", "python"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Logging",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "loguru>=0.7.0", # Version kept, can be updated
+    "PyYAML>=6.0",   # Version kept
+    "toml>=0.10.2",  # Version kept
+]
 
-[tool.poetry.dependencies]
-python = "^3.7"
-loguru = "^0.5.3"
-yaml = "^5.4.1"
-toml = "^0.10.2"
+[project.urls]
+Homepage = "https://github.com/tzervas/DynEL"
+Repository = "https://github.com/tzervas/DynEL"
+# Issues = "https://github.com/tzervas/DynEL/issues" # Add if issue tracker is public
 
-[tool.poetry.dev-dependencies]
-pytest = "^6.2"
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",    # Version kept
+    # Spec mentions ruff, black for new projects
+    "ruff",
+    "black",
+    "mypy",
+    "pytest-cov>=4.0", # Updated pytest-cov version
+    "uv", # Adding uv here as a dev tool as per spec's workflow
+]
+
+# Hatchling specific configuration (if any needed, often not for basic libraries)
+# [tool.hatch.version]
+# path = "src/dynel/__init__.py" # Example if version is stored in __init__.py
+
+# [tool.hatch.build.targets.sdist]
+# # Include/exclude specific files for sdist if needed
+# [tool.hatch.build.targets.wheel]
+# # Include/exclude specific files for wheel if needed
+
+# UV configuration (as per spec example, though uv primarily uses pyproject.toml's project table)
+# The spec had [tool.uv] with dev-dependencies. UV will use [project.optional-dependencies.dev]
+# but we can add a tool.uv table if we want to specify uv-specific configurations later,
+# for example, package sources or resolutions, though often not needed for libraries.
+# For now, optional-dependencies.dev should be sufficient for UV to pick up dev tools.
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "UP", "C4", "B", "A", "COM", "LOG", "PT", "PTH", "SIM", "TCH", "NPY", "RUF"]
+ignore = ["E501"] # Handled by black
+
+[tool.black]
+line-length = 88
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+# Add other mypy settings as needed, e.g., strict = true or per-module settings
+# [[tool.mypy.overrides]]
+# module = "some_untyped_dependency.*"
+# ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=src/dynel --cov-report=term-missing"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+markers = [
+    "benchmark: marks tests as benchmark (deselect with '-m \"not benchmark\"')",
+]
+# Filter warnings:
+# error_on_warnings = true # Make all warnings into errors
+# filterwarnings = [
+# "error",
+# "ignore::UserWarning",
+# ]
+# Example: ignore specific deprecation warnings from dependencies
+# "ignore:.*is deprecated.*:DeprecationWarning:some_dependency"
+# "ignore:.*Pydantic V1 style `@validator` validators are deprecated.*:FutureWarning"
+# "ignore::DeprecationWarning:pkg_resources"
+# "ignore::DeprecationWarning:sysconfig"
+# "ignore::DeprecationWarning:google.rpc"
+# "ignore::DeprecationWarning:google.protobuf"
+# "ignore::DeprecationWarning:h5py"
+# "ignore::DeprecationWarning:tensorflow"
+# "ignore::DeprecationWarning:tensorboard"
+# "ignore::DeprecationWarning:torch"
+# "ignore::DeprecationWarning:torchvision"
+# "ignore::DeprecationWarning:torchaudio"
+# "ignore::DeprecationWarning:transformers"
+# "ignore::DeprecationWarning:datasets"
+# "ignore::DeprecationWarning:tokenizers"
+# "ignore::DeprecationWarning:accelerate"
+# "ignore::DeprecationWarning:diffusers"
+# "ignore::DeprecationWarning:gradio"
+# "ignore::DeprecationWarning:fastapi"
+# "ignore::DeprecationWarning:uvicorn"
+# "ignore::DeprecationWarning:starlette"
+# "ignore::DeprecationWarning:pydantic"
+# "ignore::DeprecationWarning:sqlalchemy"
+# "ignore::DeprecationWarning:alembic"
+# "ignore::DeprecationWarning:httpx"
+# "ignore::DeprecationWarning:anyio"
+# "ignore::DeprecationWarning:sniffio"
+# "ignore::DeprecationWarning:click"
+# "ignore::DeprecationWarning:typer"
+# "ignore::DeprecationWarning:rich"
+# "ignore::DeprecationWarning:loguru"
+# "ignore::DeprecationWarning:structlog"
+# "ignore::DeprecationWarning:numpy"
+# "ignore::DeprecationWarning:pandas"
+# "ignore::DeprecationWarning:scipy"
+# "ignore::DeprecationWarning:sklearn"
+# "ignore::DeprecationWarning:matplotlib"
+# "ignore::DeprecationWarning:seaborn"
+# "ignore::DeprecationWarning:plotly"
+# "ignore::DeprecationWarning:PIL"
+# "ignore::DeprecationWarning:wandb"
+# "ignore::DeprecationWarning:mlflow"
+# "ignore::DeprecationWarning:optuna"
+# "ignore::DeprecationWarning:ray"
+# "ignore::DeprecationWarning:jupyter"
+# "ignore::DeprecationWarning:ipykernel"
+# "ignore::DeprecationWarning:ipywidgets"
+# "ignore::DeprecationWarning:nbformat"
+# "ignore::DeprecationWarning:nbconvert"
+# "ignore::DeprecationWarning:ipython"
+# "ignore::DeprecationWarning:prompt_toolkit"
+# "ignore::DeprecationWarning:jedi"
+# "ignore::DeprecationWarning:parso"
+# "ignore::DeprecationWarning:watchdog"
+# "ignore::DeprecationWarning:pytest"
+# "ignore::DeprecationWarning:pytest_cov"
+# "ignore::DeprecationWarning:pytest_benchmark"
+# "ignore::DeprecationWarning:pytest_asyncio"
+# "ignore::DeprecationWarning:coverage"
+# "ignore::DeprecationWarning:tox"
+# "ignore::DeprecationWarning:pre_commit"
+# "ignore::DeprecationWarning:sphinx"
+# "ignore::DeprecationWarning:mkdocs"
+# "ignore::DeprecationWarning:mkdocstrings"
+# "ignore::DeprecationWarning:jinja2"
+# "ignore::DeprecationWarning:markdown"
+# "ignore::DeprecationWarning:pymdownx"
+# "ignore::DeprecationWarning:pygments"
+# "ignore::DeprecationWarning:requests"
+# "ignore::DeprecationWarning:urllib3"
+# "ignore::DeprecationWarning:certifi"
+# "ignore::DeprecationWarning:charset_normalizer"
+# "ignore::DeprecationWarning:idna"
+# "ignore::DeprecationWarning:aiohttp"
+# "ignore::DeprecationWarning:async_timeout"
+# "ignore::DeprecationWarning:multidict"
+# "ignore::DeprecationWarning:yarl"
+# "ignore::DeprecationWarning:attrs"
+# "ignore::DeprecationWarning:pyyaml"
+# "ignore::DeprecationWarning:toml"
+# "ignore::DeprecationWarning:poetry"
+# "ignore::DeprecationWarning:poetry_core"
+# "ignore::DeprecationWarning:uv"
+# "ignore::DeprecationWarning:hatchling"
+# "ignore::DeprecationWarning:build"
+# "ignore::DeprecationWarning:twine"
+# "ignore::DeprecationWarning:keyring"
+# "ignore::DeprecationWarning:virtualenv"
+# "ignore::DeprecationWarning:pip"
+# "ignore::DeprecationWarning:setuptools"
+# "ignore::DeprecationWarning:wheel"
+# "ignore::DeprecationWarning:distlib"
+# "ignore::DeprecationWarning:filelock"
+# "ignore::DeprecationWarning:platformdirs"
+# "ignore::DeprecationWarning:six"
+# "ignore::DeprecationWarning:appdirs"
+# "ignore::DeprecationWarning:packaging"
+# "ignore::DeprecationWarning:colorama"
+# "ignore::DeprecationWarning:tqdm"
+# "ignore::DeprecationWarning:python_dateutil"
+# "ignore::DeprecationWarning:pytz"
+# "ignore::DeprecationWarning:yaml"
+# "ignore::DeprecationWarning:pipdeptree"
+# "ignore::DeprecationWarning:pip_audit"
+# "ignore::DeprecationWarning:pip_autocompile"
+# "ignore::DeprecationWarning:pip_check"
+# "ignore::DeprecationWarning:pip_licenses"
+# "ignore::DeprecationWarning:pip_reqs"
+# "ignore::DeprecationWarning:pip_search"
+# "ignore::DeprecationWarning:pip_upgrade"
+# "ignore::DeprecationWarning:pip_api"
+# "ignore::DeprecationWarning:pip_tools"
+# "ignore::DeprecationWarning:pipx"
+# "ignore::DeprecationWarning:pipenv"
+# "ignore::DeprecationWarning:conda"
+# "ignore::DeprecationWarning:mamba"
+# "ignore::DeprecationWarning:git"
+# "ignore::DeprecationWarning:docker"
+# "ignore::DeprecationWarning:kubernetes"
+# "ignore::DeprecationWarning:terraform"
+# "ignore::DeprecationWarning:ansible"
+# "ignore::DeprecationWarning:awscli"
+# "ignore::DeprecationWarning:boto3"
+# "ignore::DeprecationWarning:google_cloud_storage"
+# "ignore::DeprecationWarning:azure_storage_blob"
+# "ignore::DeprecationWarning:apache_beam"
+# "ignore::DeprecationWarning:pyspark"
+# "ignore::DeprecationWarning:dask"
+# "ignore::DeprecationWarning:fastparquet"
+# "ignore_missing_stub = True" # for untyped libraries if strict=True
+
+# [tool.coverage.run]
+# branch = true
+# source = ["src/dynel"]
+# omit = ["src/dynel/__main__.py"] # if you have a CLI entry point not meant for coverage
+
+# [tool.coverage.report]
+# fail_under = 80 # Example: fail if coverage is below 80%
+# show_missing = true
+# skip_covered = true
+# sort = "Missing"
+# exclude_lines = [
+# "pragma: no cover",
+# "def __repr__",
+# "if self.debug:",
+# "if settings.DEBUG",
+# "raise AssertionError",
+# "raise NotImplementedError",
+# "if 0:",
+# "if __name__ == .__main__.:",
+# "class .*(Protocol):",
+# "    pass",
+# "@(abc.)?abstractmethod",
+# ]
