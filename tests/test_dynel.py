@@ -484,18 +484,21 @@ def test_handle_exception_context_levels(
         log_record["exception"].value
     )  # Corrected assertion
 
-    for key in expected_keys_in_extra:
-        assert key in log_record["extra"]
-        if key == "local_vars":
-            # Loosened check due to difficulties in mocking exact f_locals via inspect.stack
-            assert "var1" in log_record["extra"]["local_vars"]
-            assert ": 10" in log_record["extra"]["local_vars"]
-            assert "var2" in log_record["extra"]["local_vars"]
-            assert ": 'test'" in log_record["extra"]["local_vars"]
-        if (
-            key == "env_details" and level_str == "det"
-        ):  # Only check if env_details was expected
-            assert log_record["extra"]["env_details"] == mock_os_environ
+    # Explicit checks instead of loop and conditionals
+    assert "timestamp" in log_record["extra"]
+    if "local_vars" in expected_keys_in_extra:
+        # Loosened check due to difficulties in mocking exact f_locals via inspect.stack
+        local_vars = log_record["extra"]["local_vars"]
+        assert "var1" in local_vars
+        assert ": 10" in local_vars
+        assert "var2" in local_vars
+        assert ": 'test'" in local_vars
+    if "free_memory" in expected_keys_in_extra:
+        assert "free_memory" in log_record["extra"]
+    if "cpu_count" in expected_keys_in_extra:
+        assert "cpu_count" in log_record["extra"]
+    if "env_details" in expected_keys_in_extra and level_str == "det":
+        assert log_record["extra"]["env_details"] == mock_os_environ
 
 
 def test_handle_exception_panic_mode(dynel_config_instance, captured_logs):
