@@ -9,9 +9,9 @@ from loguru import logger
 # This creates a potential circular dependency if cli.py directly imports from other
 # dynel modules that might also want to import cli.py (though unlikely for cli.py).
 # For now, direct imports are fine.
-from .config import DynelConfig
+from .dynel import DynelConfig, configure_logging # Updated import
 from .exception_handling import handle_exception
-from .logging_utils import configure_logging
+# from .logging_utils import configure_logging # Removed as it's now in .dynel
 
 
 def parse_command_line_args() -> dict[str, Any]:  # Python 3.9+
@@ -68,30 +68,27 @@ if __name__ == "__main__":
     config = DynelConfig(
         context_level=cli_args["context_level"],
         debug=cli_args["debug"],
-        formatting=cli_args["formatting"],
+        # formatting=cli_args["formatting"], # DynelConfig in dynel.py doesn't have formatting yet
     )
 
-    try:
-        config.load_exception_config()
-        # Using print here as logger might not be configured yet, or for CLI feedback.
-        # Or, ensure logger is configured before this print.
-        # The original code used print.
-        print(f"Loaded exception configuration. Debug mode: {config.DEBUG_MODE}")
-    except FileNotFoundError:
-        print("No DynEL configuration file found. Using default/CLI settings.")
-    except ValueError as e:
-        print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
-    except Exception as e:
-        print(
-            f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings."
-        )
+    # try: # Configuration loading logic might be handled within DynelConfig or a separate utility
+    #     config.load_exception_config()
+    #     print(f"Loaded exception configuration. Debug mode: {config.debug}")
+    # except FileNotFoundError:
+    #     print("No DynEL configuration file found. Using default/CLI settings.")
+    # except ValueError as e:
+    #     print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
+    # except Exception as e:
+    #     print(
+    #         f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings."
+    #     )
 
-    configure_logging(config)  # This sets up Loguru
+    configure_logging(config)  # This sets up Loguru, using the function from dynel.py
 
     logger.info(
         "DynEL logging configured. Debug mode: {}. Context level: {}",
-        config.DEBUG_MODE,
-        config.CUSTOM_CONTEXT_LEVEL.value,
+        config.debug, # Updated to use debug attribute from DynelConfig
+        config.context_level, # Updated to use context_level attribute
     )
 
     def example_function_one():
