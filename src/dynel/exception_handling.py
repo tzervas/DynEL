@@ -66,6 +66,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     final_custom_message = None
     final_tags = None
     specific_behaviors = None
+    default_behaviors = {} # Initialize to empty dict
 
     if function_config:
         # Default behaviors for the function, if any
@@ -87,7 +88,8 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
                 break # Found the matching configured exception type
 
     # Apply default behaviors first, then override with specific behaviors
-    applied_behaviors: dict[str, Any] = {**default_behaviors, **(specific_behaviors or {})}
+    # Ensure specific_behaviors is a dict if None
+    applied_behaviors: dict[str, Any] = {**default_behaviors, **(specific_behaviors if specific_behaviors is not None else {})}
 
     if final_tags:
         custom_context_dict["tags"] = final_tags

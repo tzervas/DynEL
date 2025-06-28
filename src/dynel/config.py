@@ -61,9 +61,22 @@ class DynelConfig:
                             exception handling configurations (e.g., custom messages, tags).
                             Loaded from external configuration files.
     :vartype EXCEPTION_CONFIG: dict[str, dict[str, Any]]
+    :ivar LOG_FORMAT: The primary log format string for general logging.
+    :vartype LOG_FORMAT: str
+    :ivar AUX_LOG_FORMAT: The log format string for auxiliary logs (e.g., specific error files).
+                         Defaults to a simpler format if not specified.
+    :vartype AUX_LOG_FORMAT: str
     """
+    DEFAULT_LOG_FORMAT = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
+    )
+    DEFAULT_AUX_LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message} | Extra: {extra}"
 
-    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False):
+
+    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False, log_format: Optional[str] = None, aux_log_format: Optional[str] = None):
         """
         Initializes a new DynelConfig object.
 
@@ -94,11 +107,14 @@ class DynelConfig:
         self.DEBUG_MODE = debug
         self.FORMATTING_ENABLED = formatting
         self.PANIC_MODE = panic_mode
+        self.LOG_FORMAT = log_format if log_format is not None else self.DEFAULT_LOG_FORMAT
+        self.AUX_LOG_FORMAT = aux_log_format if aux_log_format is not None else self.DEFAULT_AUX_LOG_FORMAT
         self.EXCEPTION_CONFIG: Dict[str, Dict[str, Any]] = {}
 
     def load_exception_config(self, filename_prefix: str = "dynel_config", supported_extensions: Optional[List[str]] = None) -> None:
         """
         Loads exception handling configurations from a file.
+        Also loads 'LOG_FORMAT' and 'AUX_LOG_FORMAT' if present at the root of the config file.
         """
         if supported_extensions is None:
             supported_extensions = ["json", "yaml", "yml", "toml"]
@@ -108,6 +124,10 @@ class DynelConfig:
         self._validate_config_dict(raw_config, config_file_found)
 
         self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE)
+        # Load log formats from config file if they exist, otherwise keep current (default or constructor-set)
+        self.LOG_FORMAT = raw_config.get("LOG_FORMAT", self.LOG_FORMAT)
+        self.AUX_LOG_FORMAT = raw_config.get("AUX_LOG_FORMAT", self.AUX_LOG_FORMAT)
+
         self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config)
 
     def _find_config_file(self, filename_prefix: str, supported_extensions: List[str]) -> Path:
