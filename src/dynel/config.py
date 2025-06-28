@@ -151,12 +151,59 @@ class DynelConfig:
                 logger.warning(f"Configuration for '{key}' is not a dictionary. Skipping.")
                 continue
             exception_classes = self._load_exception_classes(key, value.get('exceptions', []))
+            # Parse behaviors
+            behaviors_config = value.get('behaviors', {})
+            parsed_behaviors = self._parse_behaviors(key, behaviors_config)
+
             parsed_exception_config[key] = {
                 'exceptions': exception_classes,
                 'custom_message': str(value.get('custom_message', '')),
-                'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))]
+                'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))],
+                'behaviors': parsed_behaviors
             }
         return parsed_exception_config
+
+    def _parse_behaviors(self, func_key: str, behaviors_config: Any) -> Dict[str, Dict[str, Any]]:
+        """
+        Parses the 'behaviors' sub-configuration for a given function.
+        Validates the structure and specific behavior definitions.
+        """
+        if not isinstance(behaviors_config, dict):
+            logger.warning(f"Behaviors config for '{func_key}' is not a dictionary. Skipping behaviors.")
+            return {}
+
+        parsed_behaviors: Dict[str, Dict[str, Any]] = {}
+        for behavior_key, behavior_def in behaviors_config.items():
+            if not isinstance(behavior_def, dict):
+                logger.warning(f"Definition for behavior key '{behavior_key}' under function '{func_key}' is not a dictionary. Skipping this behavior entry.")
+                continue
+
+            current_behavior_actions: Dict[str, Any] = {}
+            # Validate 'add_metadata'
+            if 'add_metadata' in behavior_def:
+                metadata = behavior_def['add_metadata']
+                if isinstance(metadata, dict):
+                    current_behavior_actions['add_metadata'] = metadata
+                else:
+                    logger.warning(f"'add_metadata' for behavior '{behavior_key}' under function '{func_key}' is not a dictionary. Skipping 'add_metadata'.")
+
+            # Validate 'log_to_specific_file'
+            if 'log_to_specific_file' in behavior_def:
+                log_file = behavior_def['log_to_specific_file']
+                if isinstance(log_file, str) and log_file.strip():
+                    current_behavior_actions['log_to_specific_file'] = log_file.strip()
+                else:
+                    logger.warning(f"'log_to_specific_file' for behavior '{behavior_key}' under function '{func_key}' is not a valid string. Skipping 'log_to_specific_file'.")
+
+            # (Future: Add validation for 'custom_callback' or other behaviors here)
+
+            if current_behavior_actions:
+                # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
+                parsed_behaviors[behavior_key] = current_behavior_actions
+            else:
+                logger.info(f"No valid actions found for behavior key '{behavior_key}' under function '{func_key}'.")
+
+        return parsed_behaviors
 
     def _load_exception_classes(self, key: str, exceptions: list) -> list:
         exception_classes: list[Type[BaseException]] = []
