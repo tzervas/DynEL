@@ -15,8 +15,8 @@ authors = [
 ]
 keywords = ["logging", "error handling", "exceptions", "loguru", "dynel", "structured logging", "python"]
 dependencies = [
-    "loguru>=0.7.0",
-    "PyYAML>=6.0",
+    "loguru>=0.7.3",
+    "PyYAML>=6.0.2",
     "toml>=0.10.2",
 ]
 
