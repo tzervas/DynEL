@@ -62,7 +62,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
         except Exception:
             detailed_context["env_details_error"] = "Could not retrieve environment variables"
 
-        custom_context_dict.update(detailed_context)
+        custom_context_dict |= detailed_context
 
     log_message = f"Exception caught in {func_name if config.FORMATTING_ENABLED else func_name}"
     final_custom_message = None
