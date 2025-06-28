@@ -293,18 +293,15 @@ def test_handle_exception_add_metadata_behavior(config_with_behaviors, captured_
     assert len(captured_logs) >= 1 # Main log
     main_log_record = captured_logs[0] # Assuming first is main if no specific file log for this one
 
-    # Check for specific log if applicable, or just main log if not
-    # In this case, ValueError also logs to a specific file, so there might be more logs.
-    # We are interested in the metadata in the *main* log record primarily.
-    # The log_to_specific_file might also add a log entry to captured_logs if its handler_id is not correctly managed
-    # or if it's also captured by the main test sink.
-
-    # Find the primary error log entry (not the one from specific file logging)
-    primary_error_log = None
-    for rec in captured_logs:
-        if rec["level"].name == "ERROR" and "Exception caught in behavior_func" in rec["message"]:
-            primary_error_log = rec
-            break
+    primary_error_log = next(
+        (
+            rec
+            for rec in captured_logs
+            if rec["level"].name == "ERROR"
+            and "Exception caught in behavior_func" in rec["message"]
+        ),
+        None,
+    )
     assert primary_error_log is not None, "Primary error log not found"
 
     assert "error_code" in primary_error_log["extra"]
