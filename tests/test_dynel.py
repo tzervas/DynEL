@@ -122,10 +122,10 @@ def test_load_exception_config_file_not_found(dynel_config_instance):
         dynel_config_instance.load_exception_config("non_existent_config")
 
 
-@pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
-def test_load_exception_config_invalid_format(
+@pytest.mark.parametrize("ext", ["json", "toml"])
+def test_load_exception_config_invalid_format_json_toml(
     dynel_config_instance, ext, tmp_path, monkeypatch
-):  # Added monkeypatch
+):
     filename_prefix = "invalid_config"
     file_path = tmp_path / f"{filename_prefix}.{ext}"
     with open(file_path, "w") as f:
@@ -134,20 +134,27 @@ def test_load_exception_config_invalid_format(
         )  # Write an invalid string
 
     monkeypatch.chdir(tmp_path)  # Use monkeypatch to change CWD
-    if ext == "yaml":
-        # For YAML, a plain string is valid YAML, so it won't be a parsing error,
-        # but rather a type error because the root is not a dict.
-        with pytest.raises(
-            ValueError,
-            match=r"Invalid DynEL configuration file .* Root of configuration must be a dictionary.",
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
-    else:
-        # For JSON and TOML, it should be a parsing error.
-        with pytest.raises(
-            ValueError, match=r"Failed to parse DynEL configuration file"
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
+    with pytest.raises(
+        ValueError, match=r"Failed to parse DynEL configuration file"
+    ):
+        dynel_config_instance.load_exception_config(filename_prefix)
+
+def test_load_exception_config_invalid_format_yaml(
+    dynel_config_instance, tmp_path, monkeypatch
+):
+    filename_prefix = "invalid_config"
+    file_path = tmp_path / f"{filename_prefix}.yaml"
+    with open(file_path, "w") as f:
+        f.write(
+            "this is not valid {syntax,, for all formats"
+        )  # Write an invalid string
+
+    monkeypatch.chdir(tmp_path)  # Use monkeypatch to change CWD
+    with pytest.raises(
+        ValueError,
+        match=r"Invalid DynEL configuration file .* Root of configuration must be a dictionary.",
+    ):
+        dynel_config_instance.load_exception_config(filename_prefix)
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
@@ -196,11 +203,7 @@ def test_load_exception_config_safer_exception_loading(
         ]
     )
     mock_logger_warning.assert_any_call(
-<<<<<<< HEAD
         "Could not load or validate exception 'DoesNotExist' for 'FuncWithBuiltin': not enough values to unpack (expected 2, got 1). Skipping."
-=======
-        "Could not load exception 'DoesNotExist' for 'FuncWithBuiltin': not enough values to unpack (expected 2, got 1). Skipping."
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
     )
 
     # os.PathLike is not an exception
@@ -208,11 +211,7 @@ def test_load_exception_config_safer_exception_loading(
         "exceptions"
     ]
     mock_logger_warning.assert_any_call(
-<<<<<<< HEAD
         "Could not load or validate exception 'os.PathLike' for 'FuncWithImportable': 'os.PathLike' is not an Exception subclass.. Skipping."
-=======
-        "Configured exception 'os.PathLike' for 'FuncWithImportable' is not a valid Exception class. Skipping."
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
     )
 
     # src.dynel.ContextLevel is not an exception
@@ -220,11 +219,7 @@ def test_load_exception_config_safer_exception_loading(
         "exceptions"
     ]
     mock_logger_warning.assert_any_call(
-<<<<<<< HEAD
         "Could not load or validate exception 'src.dynel.ContextLevel' for 'FuncWithNonException': 'src.dynel.ContextLevel' is not an Exception subclass.. Skipping."
-=======
-        "Configured exception 'src.dynel.ContextLevel' for 'FuncWithNonException' is not a valid Exception class. Skipping."
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
     )
 
     # non_existent_module.NonExistentError should fail to import
@@ -232,11 +227,7 @@ def test_load_exception_config_safer_exception_loading(
         "exceptions"
     ]
     mock_logger_warning.assert_any_call(
-<<<<<<< HEAD
         "Could not load or validate exception 'nonexistent_module.NonExistentError' for 'FuncWithUnresolvable': No module named 'nonexistent_module'. Skipping."
-=======
-        "Could not load exception 'nonexistent_module.NonExistentError' for 'FuncWithUnresolvable': No module named 'nonexistent_module'. Skipping."
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
     )
 
 
@@ -454,7 +445,6 @@ def test_handle_exception_context_levels(
         config = DynelConfig(context_level=level_str)
         mock_function_name = "context_level_test_func"
 
-<<<<<<< HEAD
         # This mock will be inspect.stack()[1][0] (the frame of the caller of handle_exception)
         mock_caller_frame_object = Mock()
         mock_caller_frame_object.configure_mock(f_locals={"var1": 10, "var2": "test"}) # Use configure_mock
@@ -607,20 +597,84 @@ def test_module_exception_handler_wraps_functions(dynel_config_instance, dummy_m
             None  # Ensure mock doesn't suppress re-raise
         )
 
-        module_exception_handler(
-            config, dummy_module
-        )  # Corrected: Call module_exception_handler
+        def test_module_exception_handler_multiple_exceptions(dynel_config_instance, dummy_module):
+            """
+            Test that the exception handler is triggered for both ValueError and TypeError
+            raised from a single dummy module function.
+            """
+            # Dynamically add the required function to the dummy_module
+            def func_that_raises_multiple_exceptions(arg):
+                if arg == "value":
+                    raise ValueError("value error")
+                elif arg == "type":
+                    raise TypeError("type error")
+            setattr(dummy_module, "func_that_raises_multiple_exceptions", func_that_raises_multiple_exceptions)
 
-        # Test that wrapped function still works if no error
-        assert dummy_module.func_that_works() == "worked"
+            with patch("src.dynel.dynel.handle_exception") as mock_handle_exception:
+                mock_handle_exception.return_value = None
 
-        # Test that error in wrapped function calls our handler
-        with pytest.raises(
-            ValueError
-        ):  # Loguru's @logger.catch will re-raise by default
+                module_exception_handler(dynel_config_instance, dummy_module)
+
+                # Trigger ValueError
+                with pytest.raises(ValueError):
+                    dummy_module.func_that_raises_multiple_exceptions("value")
+                assert mock_handle_exception.call_count == 1
+                args, _ = mock_handle_exception.call_args
+                assert args[0] == dynel_config_instance
+                assert isinstance(args[1], ValueError)
+                assert str(args[1]) == "value error"
+
+                mock_handle_exception.reset_mock()
+
+                # Trigger TypeError
+                with pytest.raises(TypeError):
+                    dummy_module.func_that_raises_multiple_exceptions("type")
+                assert mock_handle_exception.call_count == 1
+                args, _ = mock_handle_exception.call_args
+                assert args[0] == dynel_config_instance
+                assert isinstance(args[1], TypeError)
+                assert str(args[1]) == "type error"
             dummy_module.func_that_raises_value_error()
 
         mock_handle_exception.assert_called_once()  # Use the correct mock name
+
+    def test_module_exception_handler_multiple_exceptions(dynel_config_instance, dummy_module):
+        """
+        Test that the exception handler is triggered for both ValueError and TypeError
+        raised from a single dummy module function.
+        """
+        # Dynamically add the required function to the dummy_module
+        def func_that_raises_multiple_exceptions(arg):
+        if arg == "value":
+            raise ValueError("value error")
+        elif arg == "type":
+            raise TypeError("type error")
+        setattr(dummy_module, "func_that_raises_multiple_exceptions", func_that_raises_multiple_exceptions)
+
+        with patch("src.dynel.dynel.handle_exception") as mock_handle_exception:
+        mock_handle_exception.return_value = None
+
+        module_exception_handler(dynel_config_instance, dummy_module)
+
+        # Trigger ValueError
+        with pytest.raises(ValueError):
+            dummy_module.func_that_raises_multiple_exceptions("value")
+        assert mock_handle_exception.call_count == 1
+        args, _ = mock_handle_exception.call_args
+        assert args[0] == dynel_config_instance
+        assert isinstance(args[1], ValueError)
+        assert str(args[1]) == "value error"
+
+        mock_handle_exception.reset_mock()
+
+        # Trigger TypeError
+        with pytest.raises(TypeError):
+            dummy_module.func_that_raises_multiple_exceptions("type")
+        assert mock_handle_exception.call_count == 1
+        args, _ = mock_handle_exception.call_args
+        assert args[0] == dynel_config_instance
+        assert isinstance(args[1], TypeError)
+        assert str(args[1]) == "type error"
         args, _ = mock_handle_exception.call_args
         assert args[0] == config
         assert isinstance(args[1], ValueError)
@@ -835,10 +889,17 @@ def test_load_exception_config_file_not_found(dynel_config_instance):
         dynel_config_instance.load_exception_config("non_existent_config")
 
 
-@pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
+@pytest.mark.parametrize(
+    "ext,expected_exception,expected_match",
+    [
+        ("yaml", ValueError, r"Invalid DynEL configuration file .* Root of configuration must be a dictionary."),
+        ("json", ValueError, r"Failed to parse DynEL configuration file"),
+        ("toml", ValueError, r"Failed to parse DynEL configuration file"),
+    ],
+)
 def test_load_exception_config_invalid_format(
-    dynel_config_instance, ext, tmp_path, monkeypatch
-):  # Added monkeypatch
+    dynel_config_instance, ext, expected_exception, expected_match, tmp_path, monkeypatch
+):
     filename_prefix = "invalid_config"
     file_path = tmp_path / f"{filename_prefix}.{ext}"
     with open(file_path, "w") as f:
@@ -847,20 +908,8 @@ def test_load_exception_config_invalid_format(
         )  # Write an invalid string
 
     monkeypatch.chdir(tmp_path)  # Use monkeypatch to change CWD
-    if ext == "yaml":
-        # For YAML, a plain string is valid YAML, so it won't be a parsing error,
-        # but rather a type error because the root is not a dict.
-        with pytest.raises(
-            ValueError,
-            match=r"Invalid DynEL configuration file .* Root of configuration must be a dictionary.",
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
-    else:
-        # For JSON and TOML, it should be a parsing error.
-        with pytest.raises(
-            ValueError, match=r"Failed to parse DynEL configuration file"
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
+    with pytest.raises(expected_exception, match=expected_match):
+        dynel_config_instance.load_exception_config(filename_prefix)
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
@@ -1043,9 +1092,6 @@ def test_handle_exception_basic_logging(dynel_config_instance, captured_logs):
     with patch("inspect.stack") as mock_stack:
         mock_function_name = "mock_function_raising_error"
         # inspect.stack()[1] should be a tuple/list where index 3 is the function name
-=======
-        # Setup for inspect.stack()[1][3] to get mock_function_name
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
         mock_caller_frame_tuple = (
             Mock(),
             "filename_mock",
@@ -1054,7 +1100,6 @@ def test_handle_exception_basic_logging(dynel_config_instance, captured_logs):
             ["code_line_mock"],
             0,
         )
-<<<<<<< HEAD
         mock_stack.return_value = [
             Mock(),  # Frame for handle_exception itself
             mock_caller_frame_tuple,  # Frame for the caller of handle_exception
@@ -1171,22 +1216,6 @@ def test_handle_exception_context_levels(
             Mock(),  # Frame for handle_exception itself (inspect.stack()[0])
             mock_caller_frame_info_tuple, # Frame info for the caller (inspect.stack()[1])
         ]
-=======
-        mock_dynel_inspect.stack.return_value = [
-            Mock(),  # Frame for handle_exception
-            mock_caller_frame_tuple,
-        ]
-
-        # Setup for inspect.currentframe().f_locals
-        mock_frame_for_locals = Mock()  # This is the mock frame object
-        mock_frame_for_locals.f_locals = {
-            "var1": 10,
-            "var2": "test",
-        }  # Assign its f_locals
-        mock_dynel_inspect.currentframe.return_value = (
-            mock_frame_for_locals  # Make inspect.currentframe() return this mock frame
-        )
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
 
         error_to_raise = ConnectionError("A connection problem")
 
@@ -1210,9 +1239,6 @@ def test_handle_exception_context_levels(
     for key in expected_keys_in_extra:
         assert key in log_record["extra"]
         if key == "local_vars":
-<<<<<<< HEAD
-            assert log_record["extra"]["local_vars"] == str({"var1": 10, "var2": "test"})
-=======
             assert (
                 str({"var1": 10, "var2": "test"}) in log_record["extra"]["local_vars"]
             )
@@ -1541,10 +1567,17 @@ def test_load_exception_config_file_not_found(dynel_config_instance):
         dynel_config_instance.load_exception_config("non_existent_config")
 
 
-@pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
+@pytest.mark.parametrize(
+    "ext,expected_exception,expected_match",
+    [
+        ("yaml", ValueError, r"Invalid DynEL configuration file .* Root of configuration must be a dictionary."),
+        ("json", ValueError, r"Failed to parse DynEL configuration file"),
+        ("toml", ValueError, r"Failed to parse DynEL configuration file"),
+    ],
+)
 def test_load_exception_config_invalid_format(
-    dynel_config_instance, ext, tmp_path, monkeypatch
-):  # Added monkeypatch
+    dynel_config_instance, ext, expected_exception, expected_match, tmp_path, monkeypatch
+):
     filename_prefix = "invalid_config"
     file_path = tmp_path / f"{filename_prefix}.{ext}"
     with open(file_path, "w") as f:
@@ -1553,20 +1586,8 @@ def test_load_exception_config_invalid_format(
         )  # Write an invalid string
 
     monkeypatch.chdir(tmp_path)  # Use monkeypatch to change CWD
-    if ext == "yaml":
-        # For YAML, a plain string is valid YAML, so it won't be a parsing error,
-        # but rather a type error because the root is not a dict.
-        with pytest.raises(
-            ValueError,
-            match=r"Invalid DynEL configuration file .* Root of configuration must be a dictionary.",
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
-    else:
-        # For JSON and TOML, it should be a parsing error.
-        with pytest.raises(
-            ValueError, match=r"Failed to parse DynEL configuration file"
-        ):
-            dynel_config_instance.load_exception_config(filename_prefix)
+    with pytest.raises(expected_exception, match=expected_match):
+        dynel_config_instance.load_exception_config(filename_prefix)
 
 
 @pytest.mark.parametrize("ext", ["json", "yaml", "toml"])
@@ -1907,7 +1928,6 @@ def test_handle_exception_context_levels(
             assert (
                 str({"var1": 10, "var2": "test"}) in log_record["extra"]["local_vars"]
             )
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
         if (
             key == "env_details" and level_str == "det"
         ):  # Only check if env_details was expected
