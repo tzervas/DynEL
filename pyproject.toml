@@ -14,31 +14,14 @@ authors = [
     {name = "Tyler Zervas", email = "tz-dev@vectorweight.com"},
 ]
 keywords = ["logging", "error handling", "exceptions", "loguru", "dynel", "structured logging", "python"]
-
-[tool.uv]
-name = "dynel" # Changed to lowercase for packaging conventions
-version = "0.1.0" # Initial development version
-description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
-authors = ["Tyler Zervas <tz-dev@vectorweight.com>"] # Updated email
-readme = "README.md" # Link to README
-license = "MIT" # Assuming MIT from the LICENSE file
-keywords = ["logging", "error handling", "exceptions", "loguru", "dynel"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Operating System :: OS Independent",
-    "Topic :: System :: Logging",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Typing :: Typed",
-]
 dependencies = [
-    "loguru>=0.7.0", # Version kept, can be updated
-    "PyYAML>=6.0",   # Version kept
-    "toml>=0.10.2",  # Version kept
+    "loguru>=0.7.3",
+    "PyYAML>=6.0.2",
+    "toml>=0.10.2",
 ]
+
+[tool.poetry.group.dev.dependencies]
+pytest-cov = "^6.2.1"
 
 [project.urls]
 Homepage = "https://github.com/tzervas/DynEL"
