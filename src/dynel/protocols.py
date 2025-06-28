@@ -5,14 +5,13 @@ This module defines protocol classes that enable a pluggable architecture
 for formatters, handlers, and potentially other aspects of DynEL.
 These follow modern Python typing practices, including PEP 695 generic syntax.
 """
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable, TypeVar, Generic
 
-# PEP 695 generic type parameter syntax is used directly in class definitions.
-# For example: class LogFormatter[T](Protocol):
-# For ExceptionHandler, E is bound to Exception: class ExceptionHandler[E: Exception](Protocol):
+T = TypeVar("T")
+E = TypeVar("E", bound=Exception)
 
 @runtime_checkable
-class LogFormatter[T](Protocol):
+class LogFormatter(Protocol, Generic[T]):
     """
     Protocol for extensible log formatting.
 
@@ -41,10 +40,10 @@ class LogFormatter[T](Protocol):
         :return: A dictionary representation of the log record.
         :rtype: dict[str, Any]
         """
-        ...
-
 @runtime_checkable
-class ExceptionHandler[E: Exception](Protocol):
+class ExceptionHandler(Protocol, Generic[E]):
+    """
+    Protocol for pluggable exception handlers.
     """
     Protocol for pluggable exception handlers.
 
