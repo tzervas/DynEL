@@ -417,11 +417,15 @@ def test_handle_exception_behavior_only_metadata_no_specific_log(config_with_beh
         except TypeError as e:
             handle_exception(config, e)
 
-    primary_error_log = None
-    for rec in captured_logs:
-        if rec["level"].name == "ERROR" and "Exception caught in behavior_func" in rec["message"]:
-            primary_error_log = rec
-            break
+    primary_error_log = next(
+        (
+            rec
+            for rec in captured_logs
+            if rec["level"].name == "ERROR"
+            and "Exception caught in behavior_func" in rec["message"]
+        ),
+        None,
+    )
     assert primary_error_log is not None
     assert primary_error_log["extra"]["error_code"] == "TE001"
     assert primary_error_log["extra"]["hint"] == "Check types"
