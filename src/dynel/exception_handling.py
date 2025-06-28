@@ -99,7 +99,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
         # Ensure metadata is a dict, though validation should happen in config parsing
         metadata_to_add = applied_behaviors['add_metadata']
         if isinstance(metadata_to_add, dict):
-            custom_context_dict.update(metadata_to_add)
+            custom_context_dict |= metadata_to_add
         else:
             logger.warning(f"Invalid 'add_metadata' format for {func_name}. Expected dict, got {type(metadata_to_add)}. Skipping.")
 
