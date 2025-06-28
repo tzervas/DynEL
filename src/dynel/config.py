@@ -215,7 +215,11 @@ class DynelConfig:
                 else:
                     logger.warning(f"'log_to_specific_file' for behavior '{behavior_key}' under function '{func_key}' is not a valid string. Skipping 'log_to_specific_file'.")
 
-            # (Future: Add validation for 'custom_callback' or other behaviors here)
+            # Warn on unknown behavior keys
+            supported_behavior_keys = {'add_metadata', 'log_to_specific_file'}
+            for unknown_key in behavior_def:
+                if unknown_key not in supported_behavior_keys:
+                    logger.warning(f"Unknown behavior key '{unknown_key}' for behavior '{behavior_key}' under function '{func_key}'. This key will be ignored.")
 
             if current_behavior_actions:
                 # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
