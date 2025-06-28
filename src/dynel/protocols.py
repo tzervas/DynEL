@@ -40,10 +40,9 @@ class LogFormatter(Protocol, Generic[T]):
         :return: A dictionary representation of the log record.
         :rtype: dict[str, Any]
         """
+        ...
 @runtime_checkable
 class ExceptionHandler(Protocol, Generic[E]):
-    """
-    Protocol for pluggable exception handlers.
     """
     Protocol for pluggable exception handlers.
 
