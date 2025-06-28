@@ -343,7 +343,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
 
         custom_context_dict.update(detailed_context)
 
-    log_message_str = f"Exception caught in {func_name if config.FORMATTING_ENABLED else func_name}"
+    log_message = f"Exception caught in {func_name if config.FORMATTING_ENABLED else func_name}"
     final_custom_message = None
     final_tags = None
 
@@ -355,7 +355,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
                     final_custom_message = func_conf.get('custom_message')
                     final_tags = func_conf.get('tags')
                     if final_custom_message:
-                            log_message_str += f" - Custom Message: {final_custom_message}"
+                            log_message += f" - Custom Message: {final_custom_message}"
                     break
 
     # Ensure custom_context is correctly passed to logger
@@ -376,22 +376,22 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     # However, when logger.catch invokes this handler, 'error' will be the actual exception instance.
 
     # [Jules] This block was identified as problematic and likely duplicated/mismerged.
-    # The correct logic for appending final_custom_message to log_message_str and handling final_tags
+    # The correct logic for appending final_custom_message to log_message and handling final_tags
     # is already present above or integrated into the final logging call.
 
     # if final_tags: # This is correctly handled below by adding to custom_context_dict
     #    custom_context_dict["tags"] = final_tags
 
-    # The log_message_str should be built up before this point.
+    # The log_message should be built up before this point.
     # The custom message logic is handled in the loop above:
     # if final_custom_message:
-    #    log_message_str += f" - Custom Message: {final_custom_message}"
+    #    log_message += f" - Custom Message: {final_custom_message}"
 
     # Use cast to satisfy type checker for custom_context_dict if it expects CustomContext type strictly
     bound_logger = logger.bind(**cast(CustomContext, custom_context_dict))
 
     # Loguru's logger.exception() automatically appends exception info including traceback.
-    bound_logger.exception(log_message_str, exception=error)
+    bound_logger.exception(log_message, exception=error)
 
 
     if config.PANIC_MODE:
