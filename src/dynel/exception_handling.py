@@ -99,7 +99,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
         # Ensure metadata is a dict, though validation should happen in config parsing
         metadata_to_add = applied_behaviors['add_metadata']
         if isinstance(metadata_to_add, dict):
-            custom_context_dict |= metadata_to_add
+            custom_context_dict.update(metadata_to_add) # Changed from |= for Python <3.9 compatibility
         else:
             logger.warning(f"Invalid 'add_metadata' format for {func_name}. Expected dict, got {type(metadata_to_add)}. Skipping.")
 
@@ -110,25 +110,27 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     bound_logger.exception(log_message, exception=error)
 
     # Implement 'log_to_specific_file' behavior
+    # TODO: Performance: Adding/removing handlers on each exception can be costly,
+    # especially in concurrent scenarios (can also lead to log loss if remove races).
+    # Consider caching handlers or using a more persistent handler approach per file if this becomes a bottleneck.
     if 'log_to_specific_file' in applied_behaviors:
         target_file = applied_behaviors['log_to_specific_file']
         if isinstance(target_file, str):
             handler_id = None
             try:
-                # Use a format that matches the main JSON log for consistency if possible, or a simpler one
-                # For PoC, let's make it clear this is an auxiliary log.
-                # Ensure the sink can handle concurrent writes if this function is called from multiple threads.
-                # Loguru handlers are thread-safe by default.
-                # We use a simple format here; it could be made configurable.
-                # The level should be the same as the main exception log, or configurable.
-                # Using enqueue=True for safety if multiple errors hit this quickly.
-                log_format = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message} | Extra: {extra}"
+                # Use configured AUX_LOG_FORMAT, fallback to LOG_FORMAT, then to a hardcoded default from DynelConfig
+                log_format = config.AUX_LOG_FORMAT # Relies on DynelConfig providing a default via constructor or file load
+
                 if not config.FORMATTING_ENABLED:
-                     log_format = log_format.replace("<level>", "").replace("</level>", "") # basic color removal
+                     # Basic color tag removal for known tags used in default formats
+                     log_format = log_format.replace("<level>", "").replace("</level>", "")
+                     log_format = log_format.replace("<green>", "").replace("</green>", "")
+                     log_format = log_format.replace("<cyan>", "").replace("</cyan>", "")
+                     # Add other color tags here if used in custom formats (e.g., from config.LOG_FORMAT)
 
                 handler_id = logger.add(
                     target_file,
-                    level="ERROR", # Or config.DEBUG_MODE related level
+                    level="ERROR", # Or config.DEBUG_MODE related level (e.g. "DEBUG" if config.DEBUG_MODE else "ERROR")
                     format=log_format,
                     rotation="5 MB", # Smaller rotation for specific error logs
                     catch=True, # Catch errors within this specific logger too
@@ -136,13 +138,12 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
                     enqueue=True
                 )
                 # Log again, this time it will go to the specific file as well as existing handlers.
-                # We re-bind here to ensure the context is included in this specific log too.
-                # Alternatively, the bound_logger from above would also send to this new handler.
                 logger.bind(**cast(CustomContext, custom_context_dict)).exception(
                     f"[Mirrored to {target_file}] {log_message}",
                     exception=error
                 )
-                logger.info(f"Logged details for error in {func_name} to {target_file}")
+                if config.DEBUG_MODE: # Check DEBUG_MODE attribute from config for conditional logging
+                    logger.debug(f"Logged details for error in {func_name} to {target_file}") # Changed to debug level
             except Exception as e_handler:
                 logger.error(f"Failed to log to specific file {target_file} for {func_name}: {e_handler}")
             finally:

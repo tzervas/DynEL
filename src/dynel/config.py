@@ -123,12 +123,22 @@ class DynelConfig:
         raw_config = self._load_config_file(config_file_found)
         self._validate_config_dict(raw_config, config_file_found)
 
-        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE)
-        # Load log formats from config file if they exist, otherwise keep current (default or constructor-set)
-        self.LOG_FORMAT = raw_config.get("LOG_FORMAT", self.LOG_FORMAT)
-        self.AUX_LOG_FORMAT = raw_config.get("AUX_LOG_FORMAT", self.AUX_LOG_FORMAT)
+        # Normalize top-level keys for specific lookups to make them case-insensitive from file
+        upper_raw_config = {k.upper(): v for k, v in raw_config.items()}
 
-        self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config)
+        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE) # Keep original case for this one, common practice
+
+        # Load log formats from config file (case-insensitively for LOG_FORMAT, AUX_LOG_FORMAT)
+        # and ensure they are strings before assigning.
+        log_format_from_file = upper_raw_config.get("LOG_FORMAT", self.LOG_FORMAT)
+        if isinstance(log_format_from_file, str):
+            self.LOG_FORMAT = log_format_from_file
+
+        aux_log_format_from_file = upper_raw_config.get("AUX_LOG_FORMAT", self.AUX_LOG_FORMAT)
+        if isinstance(aux_log_format_from_file, str):
+            self.AUX_LOG_FORMAT = aux_log_format_from_file
+
+        self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config) # Pass original raw_config
 
     def _find_config_file(self, filename_prefix: str, supported_extensions: List[str]) -> Path:
         for ext in supported_extensions:
@@ -215,11 +225,7 @@ class DynelConfig:
                 else:
                     logger.warning(f"'log_to_specific_file' for behavior '{behavior_key}' under function '{func_key}' is not a valid string. Skipping 'log_to_specific_file'.")
 
-            # Warn on unknown behavior keys
-            supported_behavior_keys = {'add_metadata', 'log_to_specific_file'}
-            for unknown_key in behavior_def:
-                if unknown_key not in supported_behavior_keys:
-                    logger.warning(f"Unknown behavior key '{unknown_key}' for behavior '{behavior_key}' under function '{func_key}'. This key will be ignored.")
+            # (Future: Add validation for 'custom_callback' or other behaviors here)
 
             if current_behavior_actions:
                 # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
