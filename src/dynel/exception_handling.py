@@ -68,16 +68,16 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     final_custom_message = None
     final_tags = None
 
-    if isinstance(error, Exception): # This check is somewhat redundant given type hint, but safe
-        if func_name in config.EXCEPTION_CONFIG:
-            func_conf = config.EXCEPTION_CONFIG[func_name]
-            for configured_exc_type in func_conf.get('exceptions', []):
-                if isinstance(error, configured_exc_type):
-                    final_custom_message = func_conf.get('custom_message')
-                    final_tags = func_conf.get('tags')
-                    if final_custom_message:
-                            log_message += f" - Custom Message: {final_custom_message}"
-                    break
+    if isinstance(error, Exception) and func_name in config.EXCEPTION_CONFIG:
+        func_conf = config.EXCEPTION_CONFIG[func_name]
+        for configured_exc_type in func_conf.get('exceptions', []):
+            if isinstance(error, configured_exc_type):
+                final_custom_message = func_conf.get('custom_message')
+                final_tags = func_conf.get('tags')
+                if final_custom_message:
+                        log_message += f" - Custom Message: {final_custom_message}"
+                break
+
 
     if final_tags:
         custom_context_dict["tags"] = final_tags
