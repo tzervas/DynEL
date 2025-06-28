@@ -80,6 +80,8 @@ if __name__ == "__main__":
         print("No DynEL configuration file found. Using default/CLI settings.")
     except ValueError as e:
         print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
+    except Exception as e:
+        print(f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings.")
 
     configure_logging(config) # This sets up Loguru
 
