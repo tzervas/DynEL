@@ -2,7 +2,6 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-<<<<<<< HEAD
 [project]
 name = "dynel"
 version = "0.1.0" # Will be updated by Hatchling/release process later
@@ -15,8 +14,8 @@ authors = [
     {name = "Tyler Zervas", email = "tz-dev@vectorweight.com"},
 ]
 keywords = ["logging", "error handling", "exceptions", "loguru", "dynel", "structured logging", "python"]
-=======
-[tool.poetry]
+
+[tool.uv]
 name = "dynel" # Changed to lowercase for packaging conventions
 version = "0.1.0" # Initial development version
 description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
@@ -24,13 +23,11 @@ authors = ["Tyler Zervas <tz-dev@vectorweight.com>"] # Updated email
 readme = "README.md" # Link to README
 license = "MIT" # Assuming MIT from the LICENSE file
 keywords = ["logging", "error handling", "exceptions", "loguru", "dynel"]
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-<<<<<<< HEAD
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
     "Topic :: System :: Logging",
@@ -50,13 +47,18 @@ Repository = "https://github.com/tzervas/DynEL"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",    # Version kept
+    "pytest>=8.4.1",    # Version kept
     # Spec mentions ruff, black for new projects
-    "ruff",
-    "black",
-    "mypy",
-    "pytest-cov>=4.0", # Updated pytest-cov version
-    "uv", # Adding uv here as a dev tool as per spec's workflow
+    "ruff>=0.12.1",
+    "black>=25.1.0", # Version kept
+    "uv>=0.7.16", # Version kept, but can be updated
+    "coverage>=7.9.1", # Version kept, but can be updated
+    "pytest>=8.4.1", # Version kept, but can be updated
+    "mypy>=1.16.1", # Version kept
+    "pytest-mock>=3.14.1", # Version kept
+    "pytest-benchmark>=5.1.0", # Version kept
+    "pytest-asyncio>=1.0.0", # Version kept
+    "pytest-cov>=6.2.1",
 ]
 
 # Hatchling specific configuration (if any needed, often not for basic libraries)
@@ -102,143 +104,6 @@ python_functions = "test_*"
 markers = [
     "benchmark: marks tests as benchmark (deselect with '-m \"not benchmark\"')",
 ]
-# Filter warnings:
-# error_on_warnings = true # Make all warnings into errors
-# filterwarnings = [
-# "error",
-# "ignore::UserWarning",
-# ]
-# Example: ignore specific deprecation warnings from dependencies
-# "ignore:.*is deprecated.*:DeprecationWarning:some_dependency"
-# "ignore:.*Pydantic V1 style `@validator` validators are deprecated.*:FutureWarning"
-# "ignore::DeprecationWarning:pkg_resources"
-# "ignore::DeprecationWarning:sysconfig"
-# "ignore::DeprecationWarning:google.rpc"
-# "ignore::DeprecationWarning:google.protobuf"
-# "ignore::DeprecationWarning:h5py"
-# "ignore::DeprecationWarning:tensorflow"
-# "ignore::DeprecationWarning:tensorboard"
-# "ignore::DeprecationWarning:torch"
-# "ignore::DeprecationWarning:torchvision"
-# "ignore::DeprecationWarning:torchaudio"
-# "ignore::DeprecationWarning:transformers"
-# "ignore::DeprecationWarning:datasets"
-# "ignore::DeprecationWarning:tokenizers"
-# "ignore::DeprecationWarning:accelerate"
-# "ignore::DeprecationWarning:diffusers"
-# "ignore::DeprecationWarning:gradio"
-# "ignore::DeprecationWarning:fastapi"
-# "ignore::DeprecationWarning:uvicorn"
-# "ignore::DeprecationWarning:starlette"
-# "ignore::DeprecationWarning:pydantic"
-# "ignore::DeprecationWarning:sqlalchemy"
-# "ignore::DeprecationWarning:alembic"
-# "ignore::DeprecationWarning:httpx"
-# "ignore::DeprecationWarning:anyio"
-# "ignore::DeprecationWarning:sniffio"
-# "ignore::DeprecationWarning:click"
-# "ignore::DeprecationWarning:typer"
-# "ignore::DeprecationWarning:rich"
-# "ignore::DeprecationWarning:loguru"
-# "ignore::DeprecationWarning:structlog"
-# "ignore::DeprecationWarning:numpy"
-# "ignore::DeprecationWarning:pandas"
-# "ignore::DeprecationWarning:scipy"
-# "ignore::DeprecationWarning:sklearn"
-# "ignore::DeprecationWarning:matplotlib"
-# "ignore::DeprecationWarning:seaborn"
-# "ignore::DeprecationWarning:plotly"
-# "ignore::DeprecationWarning:PIL"
-# "ignore::DeprecationWarning:wandb"
-# "ignore::DeprecationWarning:mlflow"
-# "ignore::DeprecationWarning:optuna"
-# "ignore::DeprecationWarning:ray"
-# "ignore::DeprecationWarning:jupyter"
-# "ignore::DeprecationWarning:ipykernel"
-# "ignore::DeprecationWarning:ipywidgets"
-# "ignore::DeprecationWarning:nbformat"
-# "ignore::DeprecationWarning:nbconvert"
-# "ignore::DeprecationWarning:ipython"
-# "ignore::DeprecationWarning:prompt_toolkit"
-# "ignore::DeprecationWarning:jedi"
-# "ignore::DeprecationWarning:parso"
-# "ignore::DeprecationWarning:watchdog"
-# "ignore::DeprecationWarning:pytest"
-# "ignore::DeprecationWarning:pytest_cov"
-# "ignore::DeprecationWarning:pytest_benchmark"
-# "ignore::DeprecationWarning:pytest_asyncio"
-# "ignore::DeprecationWarning:coverage"
-# "ignore::DeprecationWarning:tox"
-# "ignore::DeprecationWarning:pre_commit"
-# "ignore::DeprecationWarning:sphinx"
-# "ignore::DeprecationWarning:mkdocs"
-# "ignore::DeprecationWarning:mkdocstrings"
-# "ignore::DeprecationWarning:jinja2"
-# "ignore::DeprecationWarning:markdown"
-# "ignore::DeprecationWarning:pymdownx"
-# "ignore::DeprecationWarning:pygments"
-# "ignore::DeprecationWarning:requests"
-# "ignore::DeprecationWarning:urllib3"
-# "ignore::DeprecationWarning:certifi"
-# "ignore::DeprecationWarning:charset_normalizer"
-# "ignore::DeprecationWarning:idna"
-# "ignore::DeprecationWarning:aiohttp"
-# "ignore::DeprecationWarning:async_timeout"
-# "ignore::DeprecationWarning:multidict"
-# "ignore::DeprecationWarning:yarl"
-# "ignore::DeprecationWarning:attrs"
-# "ignore::DeprecationWarning:pyyaml"
-# "ignore::DeprecationWarning:toml"
-# "ignore::DeprecationWarning:poetry"
-# "ignore::DeprecationWarning:poetry_core"
-# "ignore::DeprecationWarning:uv"
-# "ignore::DeprecationWarning:hatchling"
-# "ignore::DeprecationWarning:build"
-# "ignore::DeprecationWarning:twine"
-# "ignore::DeprecationWarning:keyring"
-# "ignore::DeprecationWarning:virtualenv"
-# "ignore::DeprecationWarning:pip"
-# "ignore::DeprecationWarning:setuptools"
-# "ignore::DeprecationWarning:wheel"
-# "ignore::DeprecationWarning:distlib"
-# "ignore::DeprecationWarning:filelock"
-# "ignore::DeprecationWarning:platformdirs"
-# "ignore::DeprecationWarning:six"
-# "ignore::DeprecationWarning:appdirs"
-# "ignore::DeprecationWarning:packaging"
-# "ignore::DeprecationWarning:colorama"
-# "ignore::DeprecationWarning:tqdm"
-# "ignore::DeprecationWarning:python_dateutil"
-# "ignore::DeprecationWarning:pytz"
-# "ignore::DeprecationWarning:yaml"
-# "ignore::DeprecationWarning:pipdeptree"
-# "ignore::DeprecationWarning:pip_audit"
-# "ignore::DeprecationWarning:pip_autocompile"
-# "ignore::DeprecationWarning:pip_check"
-# "ignore::DeprecationWarning:pip_licenses"
-# "ignore::DeprecationWarning:pip_reqs"
-# "ignore::DeprecationWarning:pip_search"
-# "ignore::DeprecationWarning:pip_upgrade"
-# "ignore::DeprecationWarning:pip_api"
-# "ignore::DeprecationWarning:pip_tools"
-# "ignore::DeprecationWarning:pipx"
-# "ignore::DeprecationWarning:pipenv"
-# "ignore::DeprecationWarning:conda"
-# "ignore::DeprecationWarning:mamba"
-# "ignore::DeprecationWarning:git"
-# "ignore::DeprecationWarning:docker"
-# "ignore::DeprecationWarning:kubernetes"
-# "ignore::DeprecationWarning:terraform"
-# "ignore::DeprecationWarning:ansible"
-# "ignore::DeprecationWarning:awscli"
-# "ignore::DeprecationWarning:boto3"
-# "ignore::DeprecationWarning:google_cloud_storage"
-# "ignore::DeprecationWarning:azure_storage_blob"
-# "ignore::DeprecationWarning:apache_beam"
-# "ignore::DeprecationWarning:pyspark"
-# "ignore::DeprecationWarning:dask"
-# "ignore::DeprecationWarning:fastparquet"
-# "ignore_missing_stub = True" # for untyped libraries if strict=True
 
 # [tool.coverage.run]
 # branch = true
@@ -263,24 +128,3 @@ markers = [
 # "    pass",
 # "@(abc.)?abstractmethod",
 # ]
-=======
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Operating System :: OS Independent",
-    "Topic :: System :: Logging",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
-
-[tool.poetry.dependencies]
-python = "^3.7" # Sticking with ^3.7 for now
-loguru = "^0.7.0"  # Updated to a more recent version of Loguru
-PyYAML = "^6.0"   # Corrected package name and updated version
-toml = "^0.10.2"
-
-[tool.poetry.dev-dependencies]
-pytest = "^7.0" # Updated pytest to a more recent version
-# Potentially add other dev dependencies like black, flake8, mypy, pytest-cov later
->>>>>>> 8e85544daf4c61d4cdb6c7bdde8eb4fcf00a8ecd
