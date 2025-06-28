@@ -5,34 +5,39 @@
 class DynelConfig:
     """
     Configuration for DynEL.
-    This class will hold settings for context level, debug mode, etc.
+    This class will hold settings for context level, debug mode, formatting, etc.
     """
-    def __init__(self, context_level: str = "medium", debug: bool = False):
+    def __init__(self, context_level: str = "medium", debug: bool = False, formatting: bool = True):
         self.context_level = context_level
         self.debug = debug
+        self.formatting = formatting
+
+import warnings
 
 def configure_logging(config: DynelConfig):
     """
     Configures logging based on the provided DynelConfig.
-    This is a placeholder for now and will be implemented later.
+
+    Placeholder: This function currently only prints configuration details and does not
+    set up actual logging handlers (e.g., with Loguru). Real logging setup is pending.
     """
-    print(f"Logging configured with context level: {config.context_level}, Debug: {config.debug}")
+    warnings.warn(
+        "configure_logging is a placeholder and does not set up actual logging handlers. "
+        "Logging will not function as expected until implemented.",
+        UserWarning
+    )
+    print(f"Logging configured with context level: {config.context_level}, Debug: {config.debug}, Formatting: {config.formatting} (placeholder, no real logging setup)")
 
 def module_exception_handler(config: DynelConfig, module):
     """
     Attaches DynEL's exception handler to another module.
-    This is a placeholder for now and will be implemented later.
+
+    Placeholder: This function does not provide real exception handling yet.
+    Do not rely on this for production error handling. No actual error handling is performed.
     """
-    print(f"Exception handler attached to module: {module.__name__} with config: {config.context_level}")
-
-# Example usage (for testing purposes)
-if __name__ == "__main__":
-    # Example of creating a DynelConfig instance
-    my_config = DynelConfig(context_level="detailed", debug=True)
-    configure_logging(my_config)
-
-    # Example of attaching to a dummy module
-    class DummyModule:
-        __name__ = "DummyModule"
-
-    module_exception_handler(my_config, DummyModule)
+    warnings.warn(
+        "module_exception_handler is a placeholder and does not provide real exception handling. "
+        "Dependent code should not assume error handling is in place.",
+        UserWarning
+    )
+    print(f"Exception handler attached to module: {module.__name__} with config: {config.context_level} (placeholder, no real error handling)")

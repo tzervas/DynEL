@@ -68,27 +68,27 @@ if __name__ == "__main__":
     config = DynelConfig(
         context_level=cli_args["context_level"],
         debug=cli_args["debug"],
-        # formatting=cli_args["formatting"], # DynelConfig in dynel.py doesn't have formatting yet
+        formatting=cli_args["formatting"], # DynelConfig in dynel.py doesn't have formatting yet
     )
 
-    # try: # Configuration loading logic might be handled within DynelConfig or a separate utility
-    #     config.load_exception_config()
-    #     print(f"Loaded exception configuration. Debug mode: {config.debug}")
+    # TODO: Implement robust configuration loading from a file (e.g., dynel_config.yaml).
+    # This should include proper error handling for file not found, parsing errors, etc.
+    # For now, DynelConfig is initialized directly from CLI arguments.
+    # Example of what might be here:
+    # try:
+    #     config.load_file_config("dynel_config.yaml") # This method doesn't exist yet
     # except FileNotFoundError:
-    #     print("No DynEL configuration file found. Using default/CLI settings.")
-    # except ValueError as e:
-    #     print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
-    # except Exception as e:
-    #     print(
-    #         f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings."
-    #     )
+    #     logger.warning("Configuration file not found. Using CLI/default settings.")
+    # except Exception as e: # More specific exceptions for parsing errors
+    #     logger.error(f"Error loading configuration file: {e}")
 
     configure_logging(config)  # This sets up Loguru, using the function from dynel.py
 
     logger.info(
-        "DynEL logging configured. Debug mode: {}. Context level: {}",
-        config.debug, # Updated to use debug attribute from DynelConfig
-        config.context_level, # Updated to use context_level attribute
+        "DynEL logging configured. Debug mode: {}. Context level: {}. Formatting: {}",
+        config.debug,
+        config.context_level,
+        config.formatting,
     )
 
     def example_function_one():
