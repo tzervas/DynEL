@@ -49,7 +49,6 @@ def test_parse_command_line_args_custom(cli_input_args, expected_key, expected_v
             val = cli_input_args[idx+1]
             assert parsed_args["context_level"] == val
         except (ValueError, IndexError):
-             # This case should not happen if --context-level is in cli_input_args
-             pass # Or raise an error if the test setup is wrong
+            pytest.fail("--context-level argument provided but value missing or index error.")
     elif expected_key != "context_level":
         assert parsed_args.get("context_level", "min") == "min" # Default is 'min'

@@ -31,14 +31,15 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     :type error: Exception
     """
     func_name = inspect.stack()[1][3]
-    function_config = config.EXCEPTION_CONFIG.get(func_name, {})
+    # Use function_config for all function-specific settings
+    function_config = config.EXCEPTION_CONFIG.get(func_name)
     context_level = config.CUSTOM_CONTEXT_LEVEL
 
-    custom_context_dict: dict[str, Any] = {"timestamp": str(datetime.now(timezone.utc).isoformat())} # Python 3.9+
+    custom_context_dict: dict[str, Any] = {"timestamp": str(datetime.now(timezone.utc).isoformat())}
 
     if context_level in [ContextLevel.MEDIUM, ContextLevel.DETAILED]:
-        caller_frame_info = inspect.stack()[1] # This is a FrameInfo object (named tuple like)
-        caller_frame = caller_frame_info[0]    # Access the frame object by index
+        caller_frame_info = inspect.stack()[1]
+        caller_frame = caller_frame_info[0]
         local_vars = caller_frame.f_locals if caller_frame else None
         if local_vars:
             try:
@@ -48,43 +49,37 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
         else:
             custom_context_dict["local_vars"] = "Local variables information unavailable"
 
-
     if context_level == ContextLevel.DETAILED:
-        detailed_context: dict[str, Any] = {} # Python 3.9+
+        detailed_context: dict[str, Any] = {}
         try:
             detailed_context["free_memory"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES")
             detailed_context["cpu_count"] = os.cpu_count()
         except (OSError, AttributeError):
             detailed_context["system_info_error"] = "Could not retrieve some system info (memory/CPU)"
-
         try:
             detailed_context["env_details"] = dict(os.environ)
         except Exception:
             detailed_context["env_details_error"] = "Could not retrieve environment variables"
-
         custom_context_dict |= detailed_context
 
-    log_message = f"Exception caught in {func_name if config.FORMATTING_ENABLED else func_name}"
+    log_message = f"Exception caught in {func_name}"
     final_custom_message = None
     final_tags = None
 
-    if isinstance(error, Exception) and func_name in config.EXCEPTION_CONFIG:
-        func_conf = config.EXCEPTION_CONFIG[func_name]
-        for configured_exc_type in func_conf.get('exceptions', []):
+    if function_config:
+        for configured_exc_type in function_config.get('exceptions', []):
             if isinstance(error, configured_exc_type):
-                final_custom_message = func_conf.get('custom_message')
-                final_tags = func_conf.get('tags')
+                final_custom_message = function_config.get('custom_message')
+                final_tags = function_config.get('tags')
                 if final_custom_message:
-                        log_message += f" - Custom Message: {final_custom_message}"
+                    log_message += f" - Custom Message: {final_custom_message}"
                 break
-
 
     if final_tags:
         custom_context_dict["tags"] = final_tags
 
     bound_logger = logger.bind(**cast(CustomContext, custom_context_dict))
     bound_logger.exception(log_message, exception=error)
-
 
     if config.PANIC_MODE:
         logger.critical(f"PANIC MODE ENABLED: Exiting after handling exception in {func_name}.")

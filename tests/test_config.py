@@ -148,15 +148,10 @@ def test_load_exception_config_safer_exception_loading(
         for exc_type in dynel_config_instance.EXCEPTION_CONFIG["FuncWithBuiltin"]["exceptions"]
     )
     # Check that 'DoesNotExist' was warned about. The exact error message might vary slightly.
-    # Original was: "not enough values to unpack (expected 2, got 1)"
-    # This happens if 'DoesNotExist' is treated as a direct name and __builtins__.get fails, then rsplit fails.
-    # If it's "NameError: name 'DoesNotExist' is not defined" if __builtins__.get raises NameError.
-    # Let's make the check more robust by looking for key parts of the warning.
-    found_warning_builtin = False
-    for call_args in mock_logger_warning.call_args_list:
-        if "DoesNotExist" in call_args[0][0] and "FuncWithBuiltin" in call_args[0][0]:
-            found_warning_builtin = True
-            break
+    found_warning_builtin = any(
+        call_args and call_args[0] and "DoesNotExist" in call_args[0][0] and "FuncWithBuiltin" in call_args[0][0]
+        for call_args in mock_logger_warning.call_args_list
+    )
     assert found_warning_builtin, "Warning for 'DoesNotExist' not found or not as expected."
 
 

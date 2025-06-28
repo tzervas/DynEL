@@ -1,19 +1,20 @@
 import argparse
 from typing import Any, Dict
 
+# logger will be used from loguru, configured by configure_logging
+from loguru import logger
+
 # Assuming DynelConfig, configure_logging, handle_exception will be imported
 # from their new locations.
 # This creates a potential circular dependency if cli.py directly imports from other
 # dynel modules that might also want to import cli.py (though unlikely for cli.py).
 # For now, direct imports are fine.
 from .config import DynelConfig
-from .logging_utils import configure_logging
 from .exception_handling import handle_exception
-# logger will be used from loguru, configured by configure_logging
-from loguru import logger
+from .logging_utils import configure_logging
 
 
-def parse_command_line_args() -> dict[str, Any]: # Python 3.9+
+def parse_command_line_args() -> dict[str, Any]:  # Python 3.9+
     """
     Parses command-line arguments for DynEL configuration.
 
@@ -31,33 +32,33 @@ def parse_command_line_args() -> dict[str, Any]: # Python 3.9+
              Keys are 'context_level', 'debug', and 'formatting'.
     :rtype: Dict[str, Any]
     """
-    parser = argparse.ArgumentParser(description='DynEL Error Logging Configuration')
+    parser = argparse.ArgumentParser(description="DynEL Error Logging Configuration")
     parser.add_argument(
-        '--context-level',
+        "--context-level",
         type=str,
-        choices=['min', 'minimal', 'med', 'medium', 'det', 'detailed'],
-        default='min',
-        help='Set context level for error logging (min, med, det)'
+        choices=["min", "minimal", "med", "medium", "det", "detailed"],
+        default="min",
+        help="Set context level for error logging (min, med, det)",
     )
     parser.add_argument(
-        '--debug',
-        action='store_true',
+        "--debug",
+        action="store_true",
         default=False,
         # dest='debug', # Not needed if action is store_true and default is False
-        help='Run the program in debug mode'
+        help="Run the program in debug mode",
     )
     parser.add_argument(
-        '--no-formatting',
-        action='store_false',
+        "--no-formatting",
+        action="store_false",
         default=True,
-        dest='formatting',
-        help='Disable special formatting'
+        dest="formatting",
+        help="Disable special formatting",
     )
     args = parser.parse_args()
     return {
-        'context_level': args.context_level,
-        'debug': args.debug,
-        'formatting': args.formatting
+        "context_level": args.context_level,
+        "debug": args.debug,
+        "formatting": args.formatting,
     }
 
 
@@ -65,9 +66,9 @@ if __name__ == "__main__":
     cli_args = parse_command_line_args()
 
     config = DynelConfig(
-        context_level=cli_args['context_level'],
-        debug=cli_args['debug'],
-        formatting=cli_args['formatting']
+        context_level=cli_args["context_level"],
+        debug=cli_args["debug"],
+        formatting=cli_args["formatting"],
     )
 
     try:
@@ -81,11 +82,17 @@ if __name__ == "__main__":
     except ValueError as e:
         print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
     except Exception as e:
-        print(f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings.")
+        print(
+            f"Unexpected error loading DynEL configuration ({type(e).__name__}): {e}. Using default/CLI settings."
+        )
 
-    configure_logging(config) # This sets up Loguru
+    configure_logging(config)  # This sets up Loguru
 
-    logger.info("DynEL logging configured. Debug mode: {}. Context level: {}", config.DEBUG_MODE, config.CUSTOM_CONTEXT_LEVEL.value)
+    logger.info(
+        "DynEL logging configured. Debug mode: {}. Context level: {}",
+        config.DEBUG_MODE,
+        config.CUSTOM_CONTEXT_LEVEL.value,
+    )
 
     def example_function_one():
         try:
@@ -95,7 +102,7 @@ if __name__ == "__main__":
 
     def example_function_two():
         try:
-            my_dict: Dict[str, int] = {} # Added type hint for clarity
+            my_dict: Dict[str, int] = {}  # Added type hint for clarity
             _ = my_dict["non_existent_key"]
         except KeyError as e:
             handle_exception(config, e)

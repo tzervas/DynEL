@@ -154,7 +154,6 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
                  break
 
     assert log_entry is not None, f"Log entry from handle_exception (caller {func_name}) not found in JSON log"
-
     assert log_entry["level"]["name"] == "ERROR"
     assert f"Exception caught in {func_name}" in log_entry["message"]
 
@@ -165,8 +164,8 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
 
     extra_details = log_entry["extra"]
     assert "timestamp" in extra_details
-    assert "'alpha': 1" in extra_details["local_vars"] # Stringified dict
-    assert "'beta': 'two'" in extra_details["local_vars"] # Stringified dict
+    assert "'alpha': 1" in extra_details["local_vars"]  # Stringified dict
+    assert "'beta': 'two'" in extra_details["local_vars"]  # Stringified dict
 
     # Clean up global logger state
     dynel_logger_instance.remove()
