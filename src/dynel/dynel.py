@@ -46,7 +46,7 @@ import traceback
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Type, Union, cast # Keep Dict, List, Optional, Type, Union for <3.9 compatibility if ever needed, though target is 3.12
 
 import toml
 import yaml
@@ -104,7 +104,7 @@ class DynelConfig:
     :ivar EXCEPTION_CONFIG: A dictionary mapping function names to their specific
                             exception handling configurations (e.g., custom messages, tags).
                             Loaded from external configuration files.
-    :vartype EXCEPTION_CONFIG: Dict[str, Dict[str, Any]]
+    :vartype EXCEPTION_CONFIG: dict[str, dict[str, Any]]
     """
 
     def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False):
@@ -126,7 +126,7 @@ class DynelConfig:
                            Defaults to False.
         :type panic_mode: bool
         """
-        self.CONTEXT_LEVEL_MAP: Dict[str, ContextLevel] = {
+        self.CONTEXT_LEVEL_MAP: dict[str, ContextLevel] = { # Python 3.9+ dict hint
             'min': ContextLevel.MINIMAL,
             'minimal': ContextLevel.MINIMAL,
             'med': ContextLevel.MEDIUM,
@@ -153,7 +153,7 @@ class DynelConfig:
         :param filename_prefix: The base name of the configuration file, defaults to "dynel_config".
         :type filename_prefix: str, optional
         :param supported_extensions: A list of file extensions to try, defaults to ["json", "yaml", "yml", "toml"].
-        :type supported_extensions: Optional[List[str]], optional
+        :type supported_extensions: Optional[list[str]], optional
         :raises FileNotFoundError: If no configuration file matching the prefix and
                                    supported extensions is found.
         :raises ValueError: If the found configuration file is malformed, uses an
@@ -174,6 +174,7 @@ class DynelConfig:
             raise FileNotFoundError(f"No matching configuration file found for {filename_prefix} with extensions {supported_extensions}")
 
         extension = config_file_found.suffix[1:]
+        raw_config: Any = None # Initialize raw_config
         try:
             with config_file_found.open(mode="r") as f:
                 if extension == 'json':
@@ -197,40 +198,40 @@ class DynelConfig:
             logger.error(f"Invalid DynEL configuration file '{config_file_found}': Expected a dictionary (object/map) at the root, got {type(raw_config).__name__}.")
             raise ValueError(f"Invalid DynEL configuration file '{config_file_found}': Root of configuration must be a dictionary.")
 
-        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE) # Retain init debug_mode if not in file
+        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE)
 
-        parsed_exception_config: Dict[str, Dict[str, Any]] = {}
+        parsed_exception_config: dict[str, dict[str, Any]] = {} # Python 3.9+
         for key, value in raw_config.items():
             if key == "debug_mode":
                 continue
-            if not isinstance(value, dict): # Ensure function config is a dict
+            if not isinstance(value, dict):
                 logger.warning(f"Configuration for '{key}' is not a dictionary. Skipping.")
                 continue
 
-            exception_classes: List[Type[Exception]] = []
+            exception_classes: list[Type[Exception]] = [] # Python 3.9+
             for exception_str in value.get('exceptions', []):
                 if not isinstance(exception_str, str):
                     logger.warning(f"Invalid exception name type for '{key}': {exception_str}. Must be a string. Skipping.")
                     continue
                 try:
-                    exception_class = __builtins__.get(exception_str) # type: ignore
-                    if not (exception_class and issubclass(exception_class, BaseException)):
+                    exception_class_val: Any = __builtins__.get(exception_str) # type: ignore
+                    if not (exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
                         module_name, class_name = exception_str.rsplit('.', 1)
                         module = importlib.import_module(module_name)
-                        exception_class = getattr(module, class_name)
+                        exception_class_val = getattr(module, class_name)
 
-                    if not issubclass(exception_class, BaseException): # type: ignore
+                    if not (isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
                         raise TypeError(f"'{exception_str}' is not an Exception subclass.")
-                    exception_classes.append(exception_class) # type: ignore
+                    exception_classes.append(exception_class_val)
                 except (AttributeError, ImportError, ValueError, TypeError) as e:
                     logger.warning(f"Could not load or validate exception '{exception_str}' for '{key}': {e}. Skipping.")
-                except Exception as e: # Catch any other unexpected errors during loading
+                except Exception as e:
                     logger.error(f"Unexpected error loading exception '{exception_str}' for '{key}': {e}. Skipping.")
 
             parsed_exception_config[key] = {
                 'exceptions': exception_classes,
-                'custom_message': value.get('custom_message', ''),
-                'tags': value.get('tags', [])
+                'custom_message': str(value.get('custom_message', '')), # Ensure string
+                'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))] # Ensure tags are strings
             }
         self.EXCEPTION_CONFIG = parsed_exception_config
 
@@ -312,41 +313,30 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     function_config = config.EXCEPTION_CONFIG.get(func_name, {})
     context_level = config.CUSTOM_CONTEXT_LEVEL
 
-    frame = inspect.currentframe()
-    custom_context_dict: Dict[str, Any] = {"timestamp": str(datetime.now(timezone.utc).isoformat())}
+    custom_context_dict: dict[str, Any] = {"timestamp": str(datetime.now(timezone.utc).isoformat())} # Python 3.9+
 
     if context_level in [ContextLevel.MEDIUM, ContextLevel.DETAILED]:
-        # Ensure frame is not None before accessing f_locals
-        current_frame_obj = inspect.currentframe()
-        if current_frame_obj:
-            # Get locals from the *caller* of handle_exception, not handle_exception's own locals.
-            # This requires going one step further up the stack if handle_exception is called directly.
-            # However, if used with logger.catch, the frame context might be different.
-            # For direct calls (as in tests), stack()[1] is the caller. Its frame is stack()[1].frame.
-            # For simplicity and current use with logger.catch, using currentframe().f_back might be more robust
-            # if we want the caller of the function that was decorated by logger.catch.
-            # The current inspect.stack()[1][3] gets the name of the *caller of handle_exception*.
-            # For local_vars, we want the locals from *that* frame.
-            caller_frame = inspect.stack()[1].frame
-            local_vars = caller_frame.f_locals if caller_frame else None
-            if local_vars:
-                try:
-                    custom_context_dict["local_vars"] = str(local_vars)
-                except Exception: # Catch potential errors during string conversion of complex locals
-                    custom_context_dict["local_vars"] = "Error converting local_vars to string"
-        else: # Fallback if current_frame_obj is None
-            custom_context_dict["local_vars"] = "Frame information unavailable"
+        caller_frame_info = inspect.stack()[1] # This is a FrameInfo object (named tuple like)
+        caller_frame = caller_frame_info[0]    # Access the frame object by index
+        local_vars = caller_frame.f_locals if caller_frame else None
+        if local_vars:
+            try:
+                custom_context_dict["local_vars"] = str(local_vars)
+            except Exception:
+                custom_context_dict["local_vars"] = "Error converting local_vars to string"
+        else:
+            custom_context_dict["local_vars"] = "Local variables information unavailable"
 
 
     if context_level == ContextLevel.DETAILED:
-        detailed_context: Dict[str, Any] = {}
+        detailed_context: dict[str, Any] = {} # Python 3.9+
         try:
             detailed_context["free_memory"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES")
             detailed_context["cpu_count"] = os.cpu_count()
-        except (OSError, AttributeError): # Handle cases where sysconf or cpu_count might not be available/work
+        except (OSError, AttributeError):
             detailed_context["system_info_error"] = "Could not retrieve some system info (memory/CPU)"
 
-        try: # Separate try-except for env_details for more granular error reporting
+        try:
             detailed_context["env_details"] = dict(os.environ)
         except Exception:
             detailed_context["env_details_error"] = "Could not retrieve environment variables"
@@ -448,10 +438,11 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
             wrapped_function = logger.catch(onerror=_onerror_handler, reraise=True)(obj)
             setattr(module, name, wrapped_function)
             if config.DEBUG_MODE:
-                logging.debug("Wrapped function: %s in module %s", name, module.__name__)
+                module_name_for_log = getattr(module, '__name__', 'UnknownModule')
+                logging.debug("Wrapped function: %s in module %s", name, module_name_for_log)
 
 
-def parse_command_line_args() -> Dict[str, Any]:
+def parse_command_line_args() -> dict[str, Any]: # Python 3.9+
     """
     Parses command-line arguments for DynEL configuration.
 
@@ -487,8 +478,8 @@ def parse_command_line_args() -> Dict[str, Any]:
     parser.add_argument(
         '--no-formatting',
         action='store_false',
-        default=True, # Default is formatting enabled
-        dest='formatting', # Destination for store_false
+        default=True,
+        dest='formatting',
         help='Disable special formatting'
     )
     args = parser.parse_args()
@@ -500,23 +491,14 @@ def parse_command_line_args() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    # This block is for basic testing or direct execution of the module.
-    # In a real application, you would import and use DynelConfig, configure_logging, etc.
-
-    # Parse command line arguments first
     cli_args = parse_command_line_args()
 
-    # Initialize DynelConfig with values from CLI or defaults
-    # CLI args will override constructor defaults if provided.
     config = DynelConfig(
         context_level=cli_args['context_level'],
         debug=cli_args['debug'],
         formatting=cli_args['formatting']
-        # panic_mode can be set here or loaded from file
     )
 
-    # Attempt to load further configuration from a file.
-    # This might override debug_mode again if it's in the file.
     try:
         config.load_exception_config()
         print(f"Loaded exception configuration. Debug mode: {config.DEBUG_MODE}")
@@ -525,12 +507,10 @@ if __name__ == "__main__":
     except ValueError as e:
         print(f"Error loading DynEL configuration: {e}. Using default/CLI settings.")
 
-    # Configure the actual logging sinks
     configure_logging(config)
 
     logger.info("DynEL logging configured. Debug mode: {}. Context level: {}", config.DEBUG_MODE, config.CUSTOM_CONTEXT_LEVEL.value)
 
-    # Example of using handle_exception
     def example_function_one():
         try:
             x = 1 / 0
@@ -551,30 +531,5 @@ if __name__ == "__main__":
     logger.info("Running example functions to demonstrate DynEL.")
     example_function_one()
     example_function_two()
-
-    # Example of module_exception_handler
-    # Create a dummy module for demonstration
-    class TestModule:
-        def func_a(self):
-            return 1 + "a" # TypeError
-
-        def func_b(self):
-            return "This works"
-
-    test_mod = TestModule()
-    # Note: module_exception_handler expects a module object.
-    # To demonstrate with a class instance's methods, one would typically wrap them individually
-    # or adapt module_exception_handler. For simplicity, this demo won't fully run this part.
-    # module_exception_handler(config, test_mod) # This would not work as expected for class methods
-
-    # To test module_exception_handler properly, you'd have a separate .py file:
-    # my_test_module.py:
-    # def module_func1():
-    #     raise ValueError("Error in module_func1")
-    #
-    # In this script:
-    # import my_test_module
-    # module_exception_handler(config, my_test_module)
-    # my_test_module.module_func1()
 
     logger.info("DynEL demonstration finished.")
