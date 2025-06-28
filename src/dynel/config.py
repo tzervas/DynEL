@@ -61,9 +61,22 @@ class DynelConfig:
                             exception handling configurations (e.g., custom messages, tags).
                             Loaded from external configuration files.
     :vartype EXCEPTION_CONFIG: dict[str, dict[str, Any]]
+    :ivar LOG_FORMAT: The primary log format string for general logging.
+    :vartype LOG_FORMAT: str
+    :ivar AUX_LOG_FORMAT: The log format string for auxiliary logs (e.g., specific error files).
+                         Defaults to a simpler format if not specified.
+    :vartype AUX_LOG_FORMAT: str
     """
+    DEFAULT_LOG_FORMAT = (
+        "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>"
+    )
+    DEFAULT_AUX_LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message} | Extra: {extra}"
 
-    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False):
+
+    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False, log_format: Optional[str] = None, aux_log_format: Optional[str] = None):
         """
         Initializes a new DynelConfig object.
 
@@ -94,11 +107,14 @@ class DynelConfig:
         self.DEBUG_MODE = debug
         self.FORMATTING_ENABLED = formatting
         self.PANIC_MODE = panic_mode
+        self.LOG_FORMAT = log_format if log_format is not None else self.DEFAULT_LOG_FORMAT
+        self.AUX_LOG_FORMAT = aux_log_format if aux_log_format is not None else self.DEFAULT_AUX_LOG_FORMAT
         self.EXCEPTION_CONFIG: Dict[str, Dict[str, Any]] = {}
 
     def load_exception_config(self, filename_prefix: str = "dynel_config", supported_extensions: Optional[List[str]] = None) -> None:
         """
         Loads exception handling configurations from a file.
+        Also loads 'LOG_FORMAT' and 'AUX_LOG_FORMAT' if present at the root of the config file.
         """
         if supported_extensions is None:
             supported_extensions = ["json", "yaml", "yml", "toml"]
@@ -107,8 +123,22 @@ class DynelConfig:
         raw_config = self._load_config_file(config_file_found)
         self._validate_config_dict(raw_config, config_file_found)
 
-        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE)
-        self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config)
+        # Normalize top-level keys for specific lookups to make them case-insensitive from file
+        upper_raw_config = {k.upper(): v for k, v in raw_config.items()}
+
+        self.DEBUG_MODE = raw_config.get("debug_mode", self.DEBUG_MODE) # Keep original case for this one, common practice
+
+        # Load log formats from config file (case-insensitively for LOG_FORMAT, AUX_LOG_FORMAT)
+        # and ensure they are strings before assigning.
+        log_format_from_file = upper_raw_config.get("LOG_FORMAT", self.LOG_FORMAT)
+        if isinstance(log_format_from_file, str):
+            self.LOG_FORMAT = log_format_from_file
+
+        aux_log_format_from_file = upper_raw_config.get("AUX_LOG_FORMAT", self.AUX_LOG_FORMAT)
+        if isinstance(aux_log_format_from_file, str):
+            self.AUX_LOG_FORMAT = aux_log_format_from_file
+
+        self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config) # Pass original raw_config
 
     def _find_config_file(self, filename_prefix: str, supported_extensions: List[str]) -> Path:
         for ext in supported_extensions:
@@ -151,12 +181,59 @@ class DynelConfig:
                 logger.warning(f"Configuration for '{key}' is not a dictionary. Skipping.")
                 continue
             exception_classes = self._load_exception_classes(key, value.get('exceptions', []))
+            # Parse behaviors
+            behaviors_config = value.get('behaviors', {})
+            parsed_behaviors = self._parse_behaviors(key, behaviors_config)
+
             parsed_exception_config[key] = {
                 'exceptions': exception_classes,
                 'custom_message': str(value.get('custom_message', '')),
-                'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))]
+                'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))],
+                'behaviors': parsed_behaviors
             }
         return parsed_exception_config
+
+    def _parse_behaviors(self, func_key: str, behaviors_config: Any) -> Dict[str, Dict[str, Any]]:
+        """
+        Parses the 'behaviors' sub-configuration for a given function.
+        Validates the structure and specific behavior definitions.
+        """
+        if not isinstance(behaviors_config, dict):
+            logger.warning(f"Behaviors config for '{func_key}' is not a dictionary. Skipping behaviors.")
+            return {}
+
+        parsed_behaviors: Dict[str, Dict[str, Any]] = {}
+        for behavior_key, behavior_def in behaviors_config.items():
+            if not isinstance(behavior_def, dict):
+                logger.warning(f"Definition for behavior key '{behavior_key}' under function '{func_key}' is not a dictionary. Skipping this behavior entry.")
+                continue
+
+            current_behavior_actions: Dict[str, Any] = {}
+            # Validate 'add_metadata'
+            if 'add_metadata' in behavior_def:
+                metadata = behavior_def['add_metadata']
+                if isinstance(metadata, dict):
+                    current_behavior_actions['add_metadata'] = metadata
+                else:
+                    logger.warning(f"'add_metadata' for behavior '{behavior_key}' under function '{func_key}' is not a dictionary. Skipping 'add_metadata'.")
+
+            # Validate 'log_to_specific_file'
+            if 'log_to_specific_file' in behavior_def:
+                log_file = behavior_def['log_to_specific_file']
+                if isinstance(log_file, str) and log_file.strip():
+                    current_behavior_actions['log_to_specific_file'] = log_file.strip()
+                else:
+                    logger.warning(f"'log_to_specific_file' for behavior '{behavior_key}' under function '{func_key}' is not a valid string. Skipping 'log_to_specific_file'.")
+
+            # (Future: Add validation for 'custom_callback' or other behaviors here)
+
+            if current_behavior_actions:
+                # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
+                parsed_behaviors[behavior_key] = current_behavior_actions
+            else:
+                logger.info(f"No valid actions found for behavior key '{behavior_key}' under function '{func_key}'.")
+
+        return parsed_behaviors
 
     def _load_exception_classes(self, key: str, exceptions: list) -> list:
         exception_classes: list[Type[BaseException]] = []
