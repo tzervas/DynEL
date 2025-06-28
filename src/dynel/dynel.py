@@ -355,7 +355,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
                     final_custom_message = func_conf.get('custom_message')
                     final_tags = func_conf.get('tags')
                     if final_custom_message:
-                        log_message += f" - Custom Message: {final_custom_message}"
+                            log_message_str += f" - Custom Message: {final_custom_message}"
                     break
 
     # Ensure custom_context is correctly passed to logger
@@ -364,7 +364,7 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
 
     # For now, let's add tags to the custom_context if they exist
     if final_tags:
-        custom_context["tags"] = final_tags
+        custom_context_dict["tags"] = final_tags # Changed custom_context to custom_context_dict
     if final_custom_message and not isinstance(error, Exception): # Error is a callable for logger.catch
         # This case is tricky with logger.catch as error is the exception instance, not the callable
         pass
@@ -375,19 +375,17 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
     # If `error` is a callable (from logger.catch initial setup), logger.exception() won't use it directly.
     # However, when logger.catch invokes this handler, 'error' will be the actual exception instance.
 
-    current_logger = logger.bind(**custom_context)
-    if isinstance(error, Exception):
-        current_logger.exception(log_message) # error provides traceback
-    else:
-        # This branch should ideally not be hit if used with logger.catch correctly,
-        # as 'error' will be the exception instance.
-        # If 'error' is some other arbitrary callable not an exception, this is generic.
-        current_logger.error(f"{log_message} - (No direct exception instance provided to handler)")
-                        log_message_str += f" - Custom Message: {final_custom_message}"
-                    break
+    # [Jules] This block was identified as problematic and likely duplicated/mismerged.
+    # The correct logic for appending final_custom_message to log_message_str and handling final_tags
+    # is already present above or integrated into the final logging call.
 
-    if final_tags:
-        custom_context_dict["tags"] = final_tags
+    # if final_tags: # This is correctly handled below by adding to custom_context_dict
+    #    custom_context_dict["tags"] = final_tags
+
+    # The log_message_str should be built up before this point.
+    # The custom message logic is handled in the loop above:
+    # if final_custom_message:
+    #    log_message_str += f" - Custom Message: {final_custom_message}"
 
     # Use cast to satisfy type checker for custom_context_dict if it expects CustomContext type strictly
     bound_logger = logger.bind(**cast(CustomContext, custom_context_dict))
