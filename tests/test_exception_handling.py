@@ -369,12 +369,15 @@ def test_handle_exception_default_behavior_override(config_with_behaviors, captu
         except KeyError as e:
             handle_exception(config, e)
 
-    # Check main log for default metadata
-    primary_error_log = None
-    for rec in captured_logs:
-        if rec["level"].name == "ERROR" and "Exception caught in behavior_func" in rec["message"]:
-            primary_error_log = rec
-            break
+    primary_error_log = next(
+        (
+            rec
+            for rec in captured_logs
+            if rec["level"].name == "ERROR"
+            and "Exception caught in behavior_func" in rec["message"]
+        ),
+        None,
+    )
     assert primary_error_log is not None
     assert primary_error_log["extra"]["default_applied"] is True
     assert primary_error_log["extra"]["severity"] == "Low"
