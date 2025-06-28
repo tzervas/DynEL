@@ -7,7 +7,7 @@ name = "dynel"
 version = "0.1.0" # Will be updated by Hatchling/release process later
 description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12, <4.0"
 license = {text = "MIT"}
 license-files = ["LICENSE"] # Added as per spec
 authors = [
