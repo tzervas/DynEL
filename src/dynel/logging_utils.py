@@ -20,13 +20,13 @@ def configure_logging(config: DynelConfig) -> None:
         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
         "<level>{message}</level>"
     )
-    if not config.FORMATTING_ENABLED:
+    if not config.formatting:
         # Remove color tags if formatting is disabled
         log_format = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
 
     logger.add(
         sink="dynel.log",
-        level="DEBUG" if config.DEBUG_MODE else "INFO",
+        level="DEBUG" if config.debug else "INFO",
         format=log_format,
         rotation="10 MB",
         catch=True,
@@ -35,7 +35,7 @@ def configure_logging(config: DynelConfig) -> None:
     logger.add(
         sink="dynel.json",
         serialize=True,
-        level="DEBUG" if config.DEBUG_MODE else "INFO",
+        level="DEBUG" if config.debug else "INFO",
         rotation="10 MB",
         catch=True,
         enqueue=True
