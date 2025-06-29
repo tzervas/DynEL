@@ -91,6 +91,18 @@ def test_configure_logging_placeholder(capsys, recwarn):
             )
         assert len(w) == 0
 
+    config = DynelConfig(context_level="minimal", debug=False, formatting=True)
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter('always') # Ensure warnings are caught for this context
+        configure_logging(config)
+
+        assert len(w) == 1
+        assert issubclass(w[-1].category, UserWarning)
+        assert "configure_logging is a placeholder" in str(w[-1].message)
+
+    captured = capsys.readouterr()
+    assert "Logging configured with context level: minimal, Debug: False, Formatting: True (placeholder, no real logging setup)" in captured.out
 
 def test_module_exception_handler_placeholder(capsys, recwarn): # Keep recwarn for now, might remove if not used
     """Test the placeholder module_exception_handler function and warning."""
