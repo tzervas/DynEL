@@ -13,6 +13,67 @@ class DynelConfig:
         self.formatting = formatting
 
 import warnings
+import sys # For stderr
+from loguru import logger
+
+def configure_logging(config: DynelConfig):
+    """
+    Configures logging based on the provided DynelConfig using Loguru.
+
+    - Removes default Loguru handler.
+    - Adds a console sink (stderr):
+        - Level: DEBUG if config.debug else INFO.
+        - Format: Detailed if config.formatting else simple.
+    - Adds file sinks:
+        - `dynel.log` (human-readable, rotation: 10MB, retention: 5 files)
+        - `dynel.json` (JSON format, rotation: 10MB, retention: 5 files)
+        - Level: DEBUG if config.debug else INFO.
+    """
+    logger.remove()  # Remove default handler
+
+    # Console Sink
+    console_level = "DEBUG" if config.debug else "INFO"
+    if config.formatting:
+        console_format = (
+            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+            "<level>{level: <8}</level> | "
+            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+        )
+    else:
+        console_format = "<level>{message}</level>"
+
+    logger.add(
+        sys.stderr,
+        level=console_level,
+        format=console_format,
+        colorize=True  # Always colorize console output if terminal supports it
+    )
+
+    # File Sinks
+    file_level = "DEBUG" if config.debug else "INFO"
+
+    # Human-readable file log
+    logger.add(
+        "dynel.log",
+        level=file_level,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
+        rotation="10 MB",
+        retention="5 files",
+        encoding="utf8" # Specify encoding for file sink
+    )
+
+    # JSON file log
+    logger.add(
+        "dynel.json",
+        level=file_level,
+        serialize=True, # Key for JSON output
+        rotation="10 MB",
+        retention="5 files",
+        encoding="utf8"
+    )
+
+    logger.info(f"DynEL logging configured. Console Level: {console_level}, File Level: {file_level}, Formatting: {config.formatting}")
+
 
 def configure_logging(config: DynelConfig):
     """
