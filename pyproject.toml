@@ -1,36 +1,113 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-name = "dynel" # Changed to lowercase for packaging conventions
-version = "0.1.0" # Initial development version
+[project]
+name = "dynel"
+version = "0.1.0" # Will be updated by Hatchling/release process later
 description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
-authors = ["Tyler Zervas <tz-dev@vectorweight.com>"] # Updated email
-readme = "README.md" # Link to README
-license = "MIT" # Assuming MIT from the LICENSE file
-keywords = ["logging", "error handling", "exceptions", "loguru", "dynel"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Operating System :: OS Independent",
-    "Topic :: System :: Logging",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+readme = "README.md"
+requires-python = ">=3.12, <4.0"
+license = {text = "MIT"}
+license-files = ["LICENSE"] # Added as per spec
+authors = [
+    {name = "Tyler Zervas", email = "tz-dev@vectorweight.com"},
+]
+keywords = ["logging", "error handling", "exceptions", "loguru", "dynel", "structured logging", "python"]
+dependencies = [
+    "loguru>=0.7.3",
+    "PyYAML>=6.0.2",
+    "toml>=0.10.2",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.7" # Sticking with ^3.7 for now
-loguru = "^0.7.0"  # Updated to a more recent version of Loguru
-PyYAML = "^6.0"   # Corrected package name and updated version
-toml = "^0.10.2"
+[tool.poetry.group.dev.dependencies]
+pytest-cov = "^6.2.1"
 
-[tool.poetry.dev-dependencies]
-pytest = "^7.0" # Updated pytest to a more recent version
-# Potentially add other dev dependencies like black, flake8, mypy, pytest-cov later
+[project.urls]
+Homepage = "https://github.com/tzervas/DynEL"
+Repository = "https://github.com/tzervas/DynEL"
+# Issues = "https://github.com/tzervas/DynEL/issues" # Add if issue tracker is public
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.1",    # Version kept
+    # Spec mentions ruff, black for new projects
+    "ruff>=0.12.1",
+    "black>=25.1.0", # Version kept
+    "uv>=0.7.16", # Version kept, but can be updated
+    "coverage>=7.9.1", # Version kept, but can be updated
+    "pytest>=8.4.1", # Version kept, but can be updated
+    "mypy>=1.16.1", # Version kept
+    "pytest-mock>=3.14.1", # Version kept
+    "pytest-benchmark>=5.1.0", # Version kept
+    "pytest-asyncio>=1.0.0", # Version kept
+    "pytest-cov>=6.2.1",
+]
+
+# Hatchling specific configuration (if any needed, often not for basic libraries)
+# [tool.hatch.version]
+# path = "src/dynel/__init__.py" # Example if version is stored in __init__.py
+
+# [tool.hatch.build.targets.sdist]
+# # Include/exclude specific files for sdist if needed
+# [tool.hatch.build.targets.wheel]
+# # Include/exclude specific files for wheel if needed
+
+# UV configuration (as per spec example, though uv primarily uses pyproject.toml's project table)
+# The spec had [tool.uv] with dev-dependencies. UV will use [project.optional-dependencies.dev]
+# but we can add a tool.uv table if we want to specify uv-specific configurations later,
+# for example, package sources or resolutions, though often not needed for libraries.
+# For now, optional-dependencies.dev should be sufficient for UV to pick up dev tools.
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "UP", "C4", "B", "A", "COM", "LOG", "PT", "PTH", "SIM", "TCH", "NPY", "RUF"]
+ignore = ["E501"] # Handled by black
+
+[tool.black]
+line-length = 88
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+# Add other mypy settings as needed, e.g., strict = true or per-module settings
+# [[tool.mypy.overrides]]
+# module = "some_untyped_dependency.*"
+# ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=src/dynel --cov-report=term-missing"
+testpaths = [
+    "tests",
+]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+markers = [
+    "benchmark: marks tests as benchmark (deselect with '-m \"not benchmark\"')",
+]
+
+# [tool.coverage.run]
+# branch = true
+# source = ["src/dynel"]
+# omit = ["src/dynel/__main__.py"] # if you have a CLI entry point not meant for coverage
+
+# [tool.coverage.report]
+# fail_under = 80 # Example: fail if coverage is below 80%
+# show_missing = true
+# skip_covered = true
+# sort = "Missing"
+# exclude_lines = [
+# "pragma: no cover",
+# "def __repr__",
+# "if self.debug:",
+# "if settings.DEBUG",
+# "raise AssertionError",
+# "raise NotImplementedError",
+# "if 0:",
+# "if __name__ == .__main__.:",
+# "class .*(Protocol):",
+# "    pass",
+# "@(abc.)?abstractmethod",
+# ]

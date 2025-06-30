@@ -46,14 +46,69 @@ generate_local_backup:
     - Exception
   custom_message: "Failed to generate local backups for Route 53."
   tags: [AWS, Route53, Backup]
+  behaviors:
+    FileNotFoundError: # Specific behavior for FileNotFoundError
+      log_to_specific_file: "logs/file_not_found_backup_errors.log"
+      add_metadata:
+        error_category: "File System"
+        recovery_tip: "Ensure the source path exists and has correct permissions for backup."
+        severity_override: "HIGH"
+    PermissionError: # Specific behavior for PermissionError
+      add_metadata:
+        error_category: "OS Permissions"
+        contact_team: "security_operations"
+    default: # Default behaviors for other exceptions in this function (BotoCoreError, Exception)
+      add_metadata:
+        function_group: "Local Backup Operations"
+        attempt_retry: "false"
 
 compress_backup_files:
   exceptions:
     - FileNotFoundError
     - tarfile.TarError
-    - Exception
+    - Exception # Catchall for other errors during compression
   custom_message: "Compression of backup files failed."
   tags: [Compression, Backup]
+  behaviors:
+    FileNotFoundError: # Specific behavior for FileNotFoundError
+      log_to_specific_file: "logs/file_not_found_compression_errors.log"
+      add_metadata:
+        error_code: "COMP-FNF-001"
+        description: "Input file for compression not found."
+    tarfile.TarError: # Specific behavior for TarError
+      add_metadata:
+        error_code: "COMP-TAR-002"
+        description: "Error related to tar file creation or processing."
+        recommendation: "Check disk space and file integrity."
+    default: # Default for other exceptions (e.g. generic Exception)
+      add_metadata:
+        component: "Archiving"
+
+# This is a new example function configuration for testing purposes
+# It will be used in test_exception_handling.py or cli.py for demonstration
+example_behavior_test_function:
+  exceptions:
+    - ValueError
+    - TypeError
+    - IndexError
+  custom_message: "Error in example_behavior_test_function."
+  tags: [Test, Behaviors]
+  behaviors:
+    ValueError:
+      add_metadata:
+        value_error_info: "Specific details about the value error."
+        error_id: "VE-001"
+      log_to_specific_file: "logs/value_errors.log"
+    TypeError:
+      add_metadata:
+        type_error_info: "Specific details about the type error."
+        error_id: "TE-001"
+    default: # For IndexError and any other non-specified exceptions in the list
+      add_metadata:
+        default_behavior_active: true
+        severity: "MEDIUM"
+      log_to_specific_file: "logs/example_other_errors.log"
+
 
 configure_s3_bucket:
   exceptions:
