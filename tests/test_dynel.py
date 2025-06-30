@@ -32,6 +32,18 @@ def test_configure_logging_placeholder(capsys, recwarn):
             # Check remove was called
             mock_logger_debug.remove.assert_called_once()
 
+    # Test case 2: Repeated calls to configure_logging should not add duplicate handlers
+    with patch('src.dynel.dynel.logger') as mock_logger_repeated:
+        configure_logging(config_debug_formatted)
+        configure_logging(config_debug_formatted)
+        # Expect remove to be called twice (once per call)
+        assert mock_logger_repeated.remove.call_count == 2
+        # If your implementation adds handlers, check add call count as well
+        # Example: assert mock_logger_repeated.add.call_count == 2
+
+            # Check remove was called
+            mock_logger_debug.remove.assert_called_once()
+
             # Expected calls to logger.add
             # Call 1: Console sink
             args_console_debug, kwargs_console_debug = mock_logger_debug.add.call_args_list[0]
