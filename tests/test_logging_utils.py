@@ -1,7 +1,7 @@
 import pytest
 import json
 from pathlib import Path
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, call
 
 # Importing from the new locations in src.dynel
 from src.dynel.config import DynelConfig
@@ -23,9 +23,14 @@ def dynel_config_instance(): # Copied from test_config.py for standalone use her
 @patch("src.dynel.logging_utils.logger") # Patch logger in logging_utils.py
 def test_configure_logging_debug_mode(mock_loguru_logger, dynel_config_instance):
     dynel_config_instance.DEBUG_MODE = True
+    
+    # Mock logger.add() to return a handler id
+    mock_loguru_logger.add.return_value = 1
+    
     configure_logging(dynel_config_instance)
-
-    mock_loguru_logger.remove.assert_called_once()
+    
+    # First call will have no tracked handlers, so remove shouldn't be called
+    assert mock_loguru_logger.remove.call_count == 0
     args_list = mock_loguru_logger.add.call_args_list
     assert any(
         call[1].get("sink") == "dynel.log" and call[1].get("level") == "DEBUG"
@@ -40,9 +45,16 @@ def test_configure_logging_debug_mode(mock_loguru_logger, dynel_config_instance)
 @patch("src.dynel.logging_utils.logger") # Patch logger in logging_utils.py
 def test_configure_logging_production_mode(mock_loguru_logger, dynel_config_instance):
     dynel_config_instance.DEBUG_MODE = False
+    
+    # Mock logger.add() to return a handler id
+    mock_loguru_logger.add.return_value = 1
+    
+    # Call configure_logging twice to test handler removal
     configure_logging(dynel_config_instance)
-
-    mock_loguru_logger.remove.assert_called_once()
+    configure_logging(dynel_config_instance)
+    
+    # Second call should remove two handlers (from first call)
+    mock_loguru_logger.remove.assert_has_calls([call(1), call(1)])
     args_list = mock_loguru_logger.add.call_args_list
     assert any(
         call[1].get("sink") == "dynel.log" and call[1].get("level") == "INFO"
@@ -83,14 +95,9 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
     log_file_txt = tmp_path / "output.log"
     log_file_json = tmp_path / "output.json"
 
-    # Ensure the global logger instance (dynel_logger_instance) is clean and then configured
-    dynel_logger_instance.remove()
-    dynel_logger_instance.add(
-        log_file_txt,
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} - {message} | {extra}",
-        level="DEBUG",
-    )
-    dynel_logger_instance.add(log_file_json, serialize=True, level="DEBUG")
+    # Configure logging using our configure_logging function
+    config.DEBUG_MODE = True
+    configure_logging(config, str(log_file_txt), str(log_file_json))
 
 
     error_to_raise = IndexError("Test index out of bounds")
@@ -132,7 +139,7 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
 
     # Verify JSON log content
     assert log_file_json.exists()
-    json_content = log_file_json.read_text()
+    json_content = log_file_json.read_text(encoding='utf-8')
     # The _find_log_record_by_function was designed for records nested under "record".
     # Loguru's direct JSON output might be different. Let's try parsing the first line.
 

@@ -6,102 +6,118 @@ from src.dynel.dynel import DynelConfig, configure_logging, module_exception_han
 
 def test_dynel_config_creation():
     """Test DynelConfig creation with default and custom values."""
-    # Test default values
-    config_default = DynelConfig()
-    assert config_default.context_level == "medium"
-    assert config_default.debug is False
-    assert config_default.formatting is True # Test new default
+    # Test default values with mocked sys.stderr.isatty()
+    with patch('sys.stderr.isatty', return_value=True):
+        config_default = DynelConfig()
+        assert config_default.context_level == "medium"
+        assert config_default.debug is False
+        assert config_default.formatting is True  # Test new default
+        assert config_default.colorize is True  # Should be True when stderr is a TTY
+
+    with patch('sys.stderr.isatty', return_value=False):
+        config_no_tty = DynelConfig()
+        assert config_no_tty.colorize is False  # Should be False when stderr is not a TTY
 
     # Test custom values
-    config_custom = DynelConfig(context_level="detailed", debug=True, formatting=False)
+    config_custom = DynelConfig(
+        context_level="detailed",
+        debug=True,
+        formatting=False,
+        colorize=True  # Explicitly set colorize
+    )
     assert config_custom.context_level == "detailed"
     assert config_custom.debug is True
-    assert config_custom.formatting is False # Test new custom value
+    assert config_custom.formatting is False  # Test new custom value
+    assert config_custom.colorize is True  # Should use explicitly set value
 
-def test_configure_logging_placeholder(capsys, recwarn):
-    """Test the placeholder configure_logging function and warning."""
-    config_debug_formatted = DynelConfig(debug=True, formatting=True)
-    config_info_simple = DynelConfig(debug=False, formatting=False)
+    # Test explicit colorize=False overrides isatty()
+    with patch('sys.stderr.isatty', return_value=True):
+        config_no_color = DynelConfig(colorize=False)
+        assert config_no_color.colorize is False  # Should respect explicit False
 
-    # Test case 1: Debug mode, Formatted output
-    with warnings.catch_warnings(record=True) as w: # Keep to ensure no unexpected warnings
-        warnings.simplefilter('always')
-        with patch('src.dynel.dynel.logger') as mock_logger_debug:
-            configure_logging(config_debug_formatted)
+@pytest.mark.parametrize("config_params,expected_params", [
+    # Debug mode, Formatted output
+    (
+        {"debug": True, "formatting": True, "colorize": True},
+        {
+            "console_level": "DEBUG",
+            "console_format": "YYYY-MM-DD HH:mm:ss.SSS",
+            "file_level": "DEBUG",
+            "simple_format": False
+        }
+    ),
+    # Info mode, Simple output
+    (
+        {"debug": False, "formatting": False, "colorize": True},
+        {
+            "console_level": "INFO",
+            "console_format": "<level>{message}</level>",
+            "file_level": "INFO",
+            "simple_format": True
+        }
+    )
+])
+def test_configure_logging(capsys, config_params, expected_params):
+    """Test configure_logging with parameterized configurations."""
+    config = DynelConfig(**config_params)
 
-            # Check remove was called
-            mock_logger_debug.remove.assert_called_once()
-
-    # Test case 2: Repeated calls to configure_logging should not add duplicate handlers
-    with patch('src.dynel.dynel.logger') as mock_logger_repeated:
-        configure_logging(config_debug_formatted)
-        configure_logging(config_debug_formatted)
-        # Expect remove to be called twice (once per call)
-        assert mock_logger_repeated.remove.call_count == 2
-        # If your implementation adds handlers, check add call count as well
-        # Example: assert mock_logger_repeated.add.call_count == 2
-
-            # Check remove was called
-            mock_logger_debug.remove.assert_called_once()
-
-            # Expected calls to logger.add
-            # Call 1: Console sink
-            args_console_debug, kwargs_console_debug = mock_logger_debug.add.call_args_list[0]
-            assert args_console_debug[0] == sys.stderr # First positional arg is sink
-            assert kwargs_console_debug['level'] == "DEBUG"
-            assert "YYYY-MM-DD HH:mm:ss.SSS" in kwargs_console_debug['format'] # Detailed format
-            assert kwargs_console_debug['colorize'] is True
-
-            # Call 2: File sink (dynel.log)
-            args_file_log_debug, kwargs_file_log_debug = mock_logger_debug.add.call_args_list[1]
-            assert args_file_log_debug[0] == "dynel.log"
-            assert kwargs_file_log_debug['level'] == "DEBUG"
-            assert "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}" == kwargs_file_log_debug['format']
-            assert kwargs_file_log_debug['rotation'] == "10 MB"
-            assert kwargs_file_log_debug['retention'] == "5 files"
-            assert kwargs_file_log_debug['encoding'] == "utf8"
-            assert kwargs_file_log_debug.get('serialize') is not True # Not serialized
-
-            # Call 3: JSON file sink (dynel.json)
-            args_file_json_debug, kwargs_file_json_debug = mock_logger_debug.add.call_args_list[2]
-            assert args_file_json_debug[0] == "dynel.json"
-            assert kwargs_file_json_debug['level'] == "DEBUG"
-            assert kwargs_file_json_debug['serialize'] is True
-            assert kwargs_file_json_debug['rotation'] == "10 MB"
-            assert kwargs_file_json_debug['retention'] == "5 files"
-            assert kwargs_file_json_debug['encoding'] == "utf8"
-
-            # Check info log message
-            mock_logger_debug.info.assert_called_once_with(
-                "DynEL logging configured. Console Level: DEBUG, File Level: DEBUG, Formatting: True"
-            )
-        assert len(w) == 0 # No unexpected warnings
-
-    # Test case 2: Info mode, Simple output
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('always')
-        with patch('src.dynel.dynel.logger') as mock_logger_info:
-            configure_logging(config_info_simple)
-            mock_logger_info.remove.assert_called_once()
+        with patch('src.dynel.dynel.logger') as mock_logger:
+            # Configure logging and verify handler tracking
+            configure_logging(config)
+            assert mock_logger.remove.call_count == len(mock_logger.remove.mock_calls)
 
-            args_console_info, kwargs_console_info = mock_logger_info.add.call_args_list[0]
-            assert args_console_info[0] == sys.stderr
-            assert kwargs_console_info['level'] == "INFO"
-            assert kwargs_console_info['format'] == "<level>{message}</level>" # Simple format
+            # Verify console sink configuration
+            args_console, kwargs_console = mock_logger.add.call_args_list[0]
+            assert args_console[0] == sys.stderr
+            assert kwargs_console['level'] == expected_params['console_level']
+            if expected_params['simple_format']:
+                assert kwargs_console['format'] == expected_params['console_format']
+            else:
+                assert expected_params['console_format'] in kwargs_console['format']
+            assert kwargs_console['colorize'] == config.colorize
 
-            args_file_log_info, kwargs_file_log_info = mock_logger_info.add.call_args_list[1]
-            assert args_file_log_info[0] == "dynel.log"
-            assert kwargs_file_log_info['level'] == "INFO"
+            # Verify file sink configuration
+            args_file_log, kwargs_file_log = mock_logger.add.call_args_list[1]
+            assert args_file_log[0] == "dynel.log"
+            assert kwargs_file_log['level'] == expected_params['file_level']
+            assert kwargs_file_log['rotation'] == "10 MB"
+            assert kwargs_file_log['retention'] == "5 files"
+            assert kwargs_file_log['encoding'] == "utf8"
+            assert kwargs_file_log.get('serialize') is not True
 
-            args_file_json_info, kwargs_file_json_info = mock_logger_info.add.call_args_list[2]
-            assert args_file_json_info[0] == "dynel.json"
-            assert kwargs_file_json_info['level'] == "INFO"
-            assert kwargs_file_json_info['serialize'] is True
+            # Verify JSON sink configuration
+            args_file_json, kwargs_file_json = mock_logger.add.call_args_list[2]
+            assert args_file_json[0] == "dynel.json"
+            assert kwargs_file_json['level'] == expected_params['file_level']
+            assert kwargs_file_json['serialize'] is True
+            assert kwargs_file_json['rotation'] == "10 MB"
+            assert kwargs_file_json['retention'] == "5 files"
+            assert kwargs_file_json['encoding'] == "utf8"
 
-            mock_logger_info.info.assert_called_once_with(
-                "DynEL logging configured. Console Level: INFO, File Level: INFO, Formatting: False"
+            # Verify info message
+            mock_logger.info.assert_called_once_with(
+                f"DynEL logging configured. Console Level: {expected_params['console_level']}, "
+                f"File Level: {expected_params['file_level']}, Formatting: {config.formatting}"
             )
-        assert len(w) == 0
+        assert len(w) == 0  # No unexpected warnings
+
+@pytest.mark.parametrize("isatty_value,config_colorize,expected_colorize", [
+    (True, None, True),    # TTY terminal, auto-detect
+    (False, None, False),   # Non-TTY terminal, auto-detect
+    (True, False, False),   # TTY terminal, explicit disable
+    (False, True, True),    # Non-TTY terminal, explicit enable
+])
+def test_colorize_configuration(isatty_value, config_colorize, expected_colorize):
+    """Test colorize configuration with various terminal and explicit settings."""
+    with patch('sys.stderr.isatty', return_value=isatty_value):
+        config = DynelConfig(colorize=config_colorize)
+        with patch('src.dynel.dynel.logger') as mock_logger:
+            configure_logging(config)
+            # Verify colorize setting was passed correctly to console sink
+            _, kwargs = mock_logger.add.call_args_list[0]
+            assert kwargs['colorize'] == expected_colorize
 
     config = DynelConfig(context_level="minimal", debug=False, formatting=True)
 

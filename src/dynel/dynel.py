@@ -7,10 +7,20 @@ class DynelConfig:
     Configuration for DynEL.
     This class will hold settings for context level, debug mode, formatting, etc.
     """
-    def __init__(self, context_level: str = "medium", debug: bool = False, formatting: bool = True):
+    def __init__(self, context_level: str = "medium", debug: bool = False, formatting: bool = True, colorize: bool | None = None):
+        """
+        Initialize DynelConfig.
+        
+        Args:
+            context_level (str): Level of context ('medium' by default)
+            debug (bool): Enable debug mode (False by default)
+            formatting (bool): Enable formatting (True by default)
+            colorize (bool | None): Enable colorized output. If None, determined by sys.stderr.isatty() (None by default)
+        """
         self.context_level = context_level
         self.debug = debug
         self.formatting = formatting
+        self.colorize = sys.stderr.isatty() if colorize is None else colorize
 
 import warnings
 import sys # For stderr
@@ -39,47 +49,62 @@ def _get_file_sink_settings(level: str) -> dict:
         "encoding": "utf8"
     }
 
+# Global list to track DynEL-specific handler IDs
+_dynel_handler_ids = []
+
 def configure_logging(config: DynelConfig):
     """
     Configures logging based on the provided DynelConfig using Loguru.
 
-    - Removes default Loguru handler.
+    - Removes existing DynEL handlers.
     - Adds a console sink (stderr):
         - Level: DEBUG if config.debug else INFO.
         - Format: Detailed if config.formatting else simple.
+        - Colorize based on config and stderr.isatty()
     - Adds file sinks:
         - `dynel.log` (human-readable, rotation: 10MB, retention: 5 files)
         - `dynel.json` (JSON format, rotation: 10MB, retention: 5 files)
         - Level: DEBUG if config.debug else INFO.
     """
-    logger.remove()  # Remove default handler
+    global _dynel_handler_ids
+    
+    # Remove only DynEL-specific handlers
+    for handler_id in _dynel_handler_ids:
+        logger.remove(handler_id)
+    _dynel_handler_ids.clear()
 
     # Configure console sink
     console_level = _get_log_level(config.debug)
     console_format = _get_console_format(config.formatting)
-    logger.add(
+    # Add console sink and track its ID
+    handler_id = logger.add(
         sys.stderr,
         level=console_level,
         format=console_format,
-        colorize=sys.stderr.isatty()  # Colorize only if stderr is a TTY
+        colorize=config.colorize  # Use config's colorize setting
     )
+    _dynel_handler_ids.append(handler_id)
 
     # Configure file sinks
     file_sink_settings = _get_file_sink_settings(_get_log_level(config.debug))
 
     # Human-readable file log
-    logger.add(
+    # Add human-readable file log and track its ID
+    handler_id = logger.add(
         "dynel.log",
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
         **file_sink_settings
     )
+    _dynel_handler_ids.append(handler_id)
 
     # JSON file log
-    logger.add(
+    # Add JSON file log and track its ID
+    handler_id = logger.add(
         "dynel.json",
         serialize=True,  # Key for JSON output
         **file_sink_settings
     )
+    _dynel_handler_ids.append(handler_id)
 
     logger.info(f"DynEL logging configured. Console Level: {console_level}, File Level: {file_sink_settings['level']}, Formatting: {config.formatting}")
 
