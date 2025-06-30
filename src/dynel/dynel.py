@@ -42,11 +42,12 @@ def configure_logging(config: DynelConfig):
     else:
         console_format = "<level>{message}</level>"
 
+    colorize_console = sys.stderr.isatty()
     logger.add(
         sys.stderr,
         level=console_level,
         format=console_format,
-        colorize=True  # Always colorize console output if terminal supports it
+        colorize=colorize_console  # Colorize only if stderr is a TTY
     )
 
     # File Sinks
