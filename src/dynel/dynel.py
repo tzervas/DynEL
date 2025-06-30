@@ -16,6 +16,29 @@ import warnings
 import sys # For stderr
 from loguru import logger
 
+def _get_log_level(debug: bool) -> str:
+    """Determine the log level based on debug setting."""
+    return "DEBUG" if debug else "INFO"
+
+def _get_console_format(formatting: bool) -> str:
+    """Get the console format string based on formatting setting."""
+    if formatting:
+        return (
+            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+            "<level>{level: <8}</level> | "
+            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+        )
+    return "<level>{message}</level>"
+
+def _get_file_sink_settings(level: str) -> dict:
+    """Get common settings for file sinks."""
+    return {
+        "level": level,
+        "rotation": "10 MB",
+        "retention": "5 files",
+        "encoding": "utf8"
+    }
+
 def configure_logging(config: DynelConfig):
     """
     Configures logging based on the provided DynelConfig using Loguru.
@@ -31,64 +54,35 @@ def configure_logging(config: DynelConfig):
     """
     logger.remove()  # Remove default handler
 
-    # Console Sink
-    console_level = "DEBUG" if config.debug else "INFO"
-    if config.formatting:
-        console_format = (
-            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-            "<level>{level: <8}</level> | "
-            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
-        )
-    else:
-        console_format = "<level>{message}</level>"
-
-    colorize_console = sys.stderr.isatty()
+    # Configure console sink
+    console_level = _get_log_level(config.debug)
+    console_format = _get_console_format(config.formatting)
     logger.add(
         sys.stderr,
         level=console_level,
         format=console_format,
-        colorize=colorize_console  # Colorize only if stderr is a TTY
+        colorize=sys.stderr.isatty()  # Colorize only if stderr is a TTY
     )
 
-    # File Sinks
-    file_level = "DEBUG" if config.debug else "INFO"
+    # Configure file sinks
+    file_sink_settings = _get_file_sink_settings(_get_log_level(config.debug))
 
     # Human-readable file log
     logger.add(
         "dynel.log",
-        level=file_level,
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
-        rotation="10 MB",
-        retention="5 files",
-        encoding="utf8" # Specify encoding for file sink
+        **file_sink_settings
     )
 
     # JSON file log
     logger.add(
         "dynel.json",
-        level=file_level,
-        serialize=True, # Key for JSON output
-        rotation="10 MB",
-        retention="5 files",
-        encoding="utf8"
+        serialize=True,  # Key for JSON output
+        **file_sink_settings
     )
 
-    logger.info(f"DynEL logging configured. Console Level: {console_level}, File Level: {file_level}, Formatting: {config.formatting}")
+    logger.info(f"DynEL logging configured. Console Level: {console_level}, File Level: {file_sink_settings['level']}, Formatting: {config.formatting}")
 
-
-def configure_logging(config: DynelConfig):
-    """
-    Configures logging based on the provided DynelConfig.
-
-    Placeholder: This function currently only prints configuration details and does not
-    set up actual logging handlers (e.g., with Loguru). Real logging setup is pending.
-    """
-    warnings.warn(
-        "configure_logging is a placeholder and does not set up actual logging handlers. "
-        "Logging will not function as expected until implemented.",
-        UserWarning
-    )
-    print(f"Logging configured with context level: {config.context_level}, Debug: {config.debug}, Formatting: {config.formatting} (placeholder, no real logging setup)")
 
 def module_exception_handler(config: DynelConfig, module):
     """
