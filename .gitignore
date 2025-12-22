@@ -198,3 +198,5 @@ cython_debug/
 
 # Temporarily ignore the docker-compose.yml until its ready for use with devcontainers
 docker-compose.yml
+*.json
+*.log

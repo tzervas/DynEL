@@ -231,6 +231,10 @@ class DynelConfig:
             # This helps with testing and debugging to show which behaviors were attempted
             parsed_behaviors[behavior_key] = current_behavior_actions
             if not current_behavior_actions:
+            if current_behavior_actions:
+                # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
+                parsed_behaviors[behavior_key] = current_behavior_actions
+            else:
                 logger.info(f"No valid actions found for behavior key '{behavior_key}' under function '{func_key}'.")
 
         return parsed_behaviors
@@ -263,6 +267,20 @@ class DynelConfig:
                 else:
                     # Not in builtins and no module path, can't load
                     raise TypeError(f"'{exception_str}' is not an Exception subclass.")
+                # __builtins__ can be either a dict or a module depending on context
+                # In __main__ it's typically a module, but in imported modules it can be a dict
+                if isinstance(__builtins__, dict):  # type: ignore
+                    exception_class_val = __builtins__.get(exception_str, None)  # type: ignore
+                else:
+                    exception_class_val = getattr(__builtins__, exception_str, None)  # type: ignore
+                
+                if not (exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
+                    if '.' in exception_str:
+                        module_name, class_name = exception_str.rsplit('.', 1)
+                        module = importlib.import_module(module_name)
+                        exception_class_val = getattr(module, class_name)
+                if not (isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
+                    raise TypeError(f"'{exception_str}' is not a BaseException subclass.")
             except (AttributeError, ImportError, ValueError, TypeError) as e:
                 logger.warning(f"Could not load or validate exception '{exception_str}' for '{key}': {e}. Skipping.")
                 continue
