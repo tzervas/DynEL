@@ -2,7 +2,9 @@ import importlib
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, Union # Keep Dict, List, Optional, Type, Union for <3.9 compatibility
+from typing import (  # Modern type hints used (dict, list, etc.) - legacy imports removed
+    Any,
+)
 
 import toml
 import yaml
@@ -22,7 +24,7 @@ class ContextLevel(Enum):
     DETAILED = 'detailed'
 
 
-class CustomContext(Dict[str, Union[str, int, float, bool, None, Dict[str, Any], List[Any]]]):
+class CustomContext(dict[str, str | int | float | bool | None | dict[str, Any] | list[Any]]):
     """
     Type alias for custom context data passed to the logger.
     This enhances type hinting for the `extra` field in Loguru records.
@@ -76,7 +78,7 @@ class DynelConfig:
     DEFAULT_AUX_LOG_FORMAT = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message} | Extra: {extra}"
 
 
-    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False, log_format: Optional[str] = None, aux_log_format: Optional[str] = None):
+    def __init__(self, context_level: str = 'min', debug: bool = False, formatting: bool = True, panic_mode: bool = False, log_format: str | None = None, aux_log_format: str | None = None):
         """
         Initializes a new DynelConfig object.
 
@@ -101,7 +103,7 @@ class DynelConfig:
             'med': ContextLevel.MEDIUM,
             'medium': ContextLevel.MEDIUM,
             'det': ContextLevel.DETAILED,
-            'detailed': ContextLevel.DETAILED
+            'detailed': ContextLevel.DETAILED,
         }
         self.CUSTOM_CONTEXT_LEVEL: ContextLevel = self.CONTEXT_LEVEL_MAP.get(context_level, ContextLevel.MINIMAL)
         self.DEBUG_MODE = debug
@@ -109,9 +111,9 @@ class DynelConfig:
         self.PANIC_MODE = panic_mode
         self.LOG_FORMAT = log_format if log_format is not None else self.DEFAULT_LOG_FORMAT
         self.AUX_LOG_FORMAT = aux_log_format if aux_log_format is not None else self.DEFAULT_AUX_LOG_FORMAT
-        self.EXCEPTION_CONFIG: Dict[str, Dict[str, Any]] = {}
+        self.EXCEPTION_CONFIG: dict[str, dict[str, Any]] = {}
 
-    def load_exception_config(self, filename_prefix: str = "dynel_config", supported_extensions: Optional[List[str]] = None) -> None:
+    def load_exception_config(self, filename_prefix: str = "dynel_config", supported_extensions: list[str] | None = None) -> None:
         """
         Loads exception handling configurations from a file.
         Also loads 'LOG_FORMAT' and 'AUX_LOG_FORMAT' if present at the root of the config file.
@@ -140,7 +142,7 @@ class DynelConfig:
 
         self.EXCEPTION_CONFIG = self._parse_exception_config(raw_config) # Pass original raw_config
 
-    def _find_config_file(self, filename_prefix: str, supported_extensions: List[str]) -> Path:
+    def _find_config_file(self, filename_prefix: str, supported_extensions: list[str]) -> Path:
         for ext in supported_extensions:
             config_file = Path(f"{filename_prefix}.{ext}")
             if config_file.exists():
@@ -189,11 +191,11 @@ class DynelConfig:
                 'exceptions': exception_classes,
                 'custom_message': str(value.get('custom_message', '')),
                 'tags': [str(tag) for tag in value.get('tags', []) if isinstance(tag, (str, int, float))],
-                'behaviors': parsed_behaviors
+                'behaviors': parsed_behaviors,
             }
         return parsed_exception_config
 
-    def _parse_behaviors(self, func_key: str, behaviors_config: Any) -> Dict[str, Dict[str, Any]]:
+    def _parse_behaviors(self, func_key: str, behaviors_config: Any) -> dict[str, dict[str, Any]]:
         """
         Parses the 'behaviors' sub-configuration for a given function.
         Validates the structure and specific behavior definitions.
@@ -202,13 +204,13 @@ class DynelConfig:
             logger.warning(f"Behaviors config for '{func_key}' is not a dictionary. Skipping behaviors.")
             return {}
 
-        parsed_behaviors: Dict[str, Dict[str, Any]] = {}
+        parsed_behaviors: dict[str, dict[str, Any]] = {}
         for behavior_key, behavior_def in behaviors_config.items():
             if not isinstance(behavior_def, dict):
                 logger.warning(f"Definition for behavior key '{behavior_key}' under function '{func_key}' is not a dictionary. Skipping this behavior entry.")
                 continue
 
-            current_behavior_actions: Dict[str, Any] = {}
+            current_behavior_actions: dict[str, Any] = {}
             # Validate 'add_metadata'
             if 'add_metadata' in behavior_def:
                 metadata = behavior_def['add_metadata']
@@ -236,18 +238,17 @@ class DynelConfig:
         return parsed_behaviors
 
     def _load_exception_classes(self, key: str, exceptions: list) -> list:
-        exception_classes: list[Type[BaseException]] = []
+        exception_classes: list[type[BaseException]] = []
         for exception_str in exceptions:
             if not isinstance(exception_str, str):
                 logger.warning(f"Invalid exception name type for '{key}': {exception_str}. Must be a string. Skipping.")
                 continue
             exception_class_val: Any = None
             try:
-                # First try to get from builtins
-                # __builtins__ can be either a module or a dict depending on context
+                # First try to get from builtins module
                 import builtins
                 exception_class_val = getattr(builtins, exception_str, None)
-                
+
                 # Check if we got a valid exception class from builtins
                 if exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException):
                     # Successfully loaded from builtins, use it
@@ -263,20 +264,6 @@ class DynelConfig:
                 else:
                     # Not in builtins and no module path, can't load
                     raise TypeError(f"'{exception_str}' is not an Exception subclass.")
-                # __builtins__ can be either a dict or a module depending on context
-                # In __main__ it's typically a module, but in imported modules it can be a dict
-                if isinstance(__builtins__, dict):  # type: ignore
-                    exception_class_val = __builtins__.get(exception_str, None)  # type: ignore
-                else:
-                    exception_class_val = getattr(__builtins__, exception_str, None)  # type: ignore
-                
-                if not (exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
-                    if '.' in exception_str:
-                        module_name, class_name = exception_str.rsplit('.', 1)
-                        module = importlib.import_module(module_name)
-                        exception_class_val = getattr(module, class_name)
-                if not (isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
-                    raise TypeError(f"'{exception_str}' is not a BaseException subclass.")
             except (AttributeError, ImportError, ValueError, TypeError) as e:
                 logger.warning(f"Could not load or validate exception '{exception_str}' for '{key}': {e}. Skipping.")
                 continue
