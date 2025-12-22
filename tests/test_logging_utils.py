@@ -125,6 +125,10 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
             raise error_to_raise
         except IndexError as e:
             handle_exception(config, e) # This uses the globally configured logger (dynel_logger_instance)
+    
+    # Flush pending logs to ensure they're written to files
+    from loguru import logger
+    logger.complete()
 
     # Verify text log content
     assert log_file_txt.exists()
