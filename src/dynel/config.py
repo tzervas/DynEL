@@ -243,7 +243,13 @@ class DynelConfig:
                 continue
             exception_class_val: Any = None
             try:
-                exception_class_val = getattr(__builtins__, exception_str, None)  # type: ignore
+                # __builtins__ can be either a dict or a module depending on context
+                # In __main__ it's typically a module, but in imported modules it can be a dict
+                if isinstance(__builtins__, dict):  # type: ignore
+                    exception_class_val = __builtins__.get(exception_str, None)  # type: ignore
+                else:
+                    exception_class_val = getattr(__builtins__, exception_str, None)  # type: ignore
+                
                 if not (exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
                     if '.' in exception_str:
                         module_name, class_name = exception_str.rsplit('.', 1)
