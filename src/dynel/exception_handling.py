@@ -245,18 +245,26 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
                     actual_func = original_descriptor.__func__
                     wrapped_func = logger.catch(onerror=actual_onerror_handler, reraise=True)(actual_func)
                     wrapped_member = staticmethod(wrapped_func)
-                    setattr(obj, class_attr_name, wrapped_member)
-                    if config.DEBUG_MODE:
-                        logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    try:
+                        setattr(obj, class_attr_name, wrapped_member)
+                        if config.DEBUG_MODE:
+                            logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    except Exception as e:
+                        if config.DEBUG_MODE:
+                            logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
                 
                 elif isinstance(original_descriptor, classmethod):
                     # Wrap the underlying function
                     actual_func = original_descriptor.__func__
                     wrapped_func = logger.catch(onerror=actual_onerror_handler, reraise=True)(actual_func)
                     wrapped_member = classmethod(wrapped_func)
-                    setattr(obj, class_attr_name, wrapped_member)
-                    if config.DEBUG_MODE:
-                        logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    try:
+                        setattr(obj, class_attr_name, wrapped_member)
+                        if config.DEBUG_MODE:
+                            logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    except Exception as e:
+                        if config.DEBUG_MODE:
+                            logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
                 
                 elif inspect.isfunction(original_descriptor):
                     # Regular instance method
