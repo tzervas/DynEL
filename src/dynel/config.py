@@ -229,10 +229,8 @@ class DynelConfig:
 
             # Always add the behavior key, even if no valid actions were found
             # This helps with testing and debugging to show which behaviors were attempted
-            if current_behavior_actions:
-                # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
-                parsed_behaviors[behavior_key] = current_behavior_actions
-            else:
+            parsed_behaviors[behavior_key] = current_behavior_actions
+            if not current_behavior_actions:
                 logger.info(f"No valid actions found for behavior key '{behavior_key}' under function '{func_key}'.")
 
         return parsed_behaviors

@@ -83,7 +83,7 @@ def test_configure_logging(capsys, config_params, expected_params):
             assert args_file_log[0] == "dynel.log"
             assert kwargs_file_log['level'] == expected_params['file_level']
             assert kwargs_file_log['rotation'] == "10 MB"
-            assert kwargs_file_log['retention'] == "5 files"
+            assert kwargs_file_log['retention'] == 5
             assert kwargs_file_log['encoding'] == "utf8"
             assert kwargs_file_log.get('serialize') is not True
 
@@ -93,7 +93,7 @@ def test_configure_logging(capsys, config_params, expected_params):
             assert kwargs_file_json['level'] == expected_params['file_level']
             assert kwargs_file_json['serialize'] is True
             assert kwargs_file_json['rotation'] == "10 MB"
-            assert kwargs_file_json['retention'] == "5 files"
+            assert kwargs_file_json['retention'] == 5
             assert kwargs_file_json['encoding'] == "utf8"
 
             # Verify info message

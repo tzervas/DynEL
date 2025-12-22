@@ -45,7 +45,6 @@ def _get_file_sink_settings(level: str) -> dict:
     return {
         "level": level,
         "rotation": "10 MB",
-        "retention": "5 files",
         "retention": 5,  # Keep 5 files (integer, not "5 files")
         "encoding": "utf8"
     }
