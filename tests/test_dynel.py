@@ -114,23 +114,20 @@ def test_colorize_configuration(isatty_value, config_colorize, expected_colorize
     with patch('sys.stderr.isatty', return_value=isatty_value):
         config = DynelConfig(colorize=config_colorize)
         with patch('src.dynel.dynel.logger') as mock_logger:
+            # Configure return values for mocked logger.add()
+            mock_logger.add.return_value = 1  # Return a valid integer handler ID
             configure_logging(config)
             # Verify colorize setting was passed correctly to console sink
             _, kwargs = mock_logger.add.call_args_list[0]
             assert kwargs['colorize'] == expected_colorize
 
+    # Test that actual logging configuration works (no longer a placeholder)
     config = DynelConfig(context_level="minimal", debug=False, formatting=True)
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter('always') # Ensure warnings are caught for this context
-        configure_logging(config)
-
-        assert len(w) == 1
-        assert issubclass(w[-1].category, UserWarning)
-        assert "configure_logging is a placeholder" in str(w[-1].message)
-
-    captured = capsys.readouterr()
-    assert "Logging configured with context level: minimal, Debug: False, Formatting: True (placeholder, no real logging setup)" in captured.out
+    # Since configure_logging is now implemented, it should work without warnings
+    configure_logging(config)
+    # Verify that handler IDs are being tracked
+    from src.dynel.dynel import _dynel_handler_ids
+    assert len(_dynel_handler_ids) == 3  # console + dynel.log + dynel.json
 
 def test_module_exception_handler_placeholder(capsys, recwarn): # Keep recwarn for now, might remove if not used
     """Test the placeholder module_exception_handler function and warning."""

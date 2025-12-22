@@ -45,7 +45,7 @@ def _get_file_sink_settings(level: str) -> dict:
     return {
         "level": level,
         "rotation": "10 MB",
-        "retention": "5 files",
+        "retention": 5,  # Keep 5 files (integer, not "5 files")
         "encoding": "utf8"
     }
 
@@ -70,7 +70,13 @@ def configure_logging(config: DynelConfig):
     
     # Remove only DynEL-specific handlers
     for handler_id in _dynel_handler_ids:
-        logger.remove(handler_id)
+        try:
+            # Only attempt to remove if handler_id is a valid integer
+            if isinstance(handler_id, int):
+                logger.remove(handler_id)
+        except ValueError:
+            # Handler was already removed or doesn't exist, ignore
+            pass
     _dynel_handler_ids.clear()
 
     # Configure console sink
