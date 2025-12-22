@@ -231,10 +231,13 @@ def test_module_exception_handler_debug_logging(dynel_config_instance, dummy_mod
         # The fixture uses "dummy_module_for_dynel_test"
         mock_logger_debug.assert_any_call("Wrapped function: %s in module %s", "func_that_works", "dummy_module_for_dynel_test")
         mock_logger_debug.assert_any_call("Wrapped function: %s in module %s", "func_that_raises_value_error", "dummy_module_for_dynel_test")
-        # Ensure it wasn't called for non-functions
+        # Ensure it wasn't called for non-functions (i.e., no "Wrapped function" logs for classes or private variables)
         for call_arg in mock_logger_debug.call_args_list:
-            assert "_a_private_variable" not in call_arg[0][1] # Corrected assertion for string check
-            assert "SomeClass" not in call_arg[0][1] # Corrected assertion for string check
+            # Check if this is a "Wrapped function" call (not "Wrapped method")
+            if call_arg[0][0] == "Wrapped function: %s in module %s":
+                # Ensure the function name is not "_a_private_variable" or "SomeClass"
+                assert call_arg[0][1] not in ["_a_private_variable", "SomeClass"]
+
 
 
 # --- Tests for New Behavior Implementations ---
@@ -346,11 +349,15 @@ def test_handle_exception_log_to_specific_file_behavior(config_with_behaviors, c
     lines = specific_log_content.strip().split('\n')
     assert len(lines) > 0
     specific_log_json = json.loads(lines[0]) # Assuming one log line for PoC
-
-    assert "[Mirrored to " in specific_log_json["message"]
-    assert "Test VE for specific file" in specific_log_json["exception"]["value"]
-    assert specific_log_json["extra"]["error_code"] == "VE001" # Metadata should also be in specific log
-    assert specific_log_json["extra"]["source"] == "validation"
+    
+    # When loguru serializes, the structure is {"text": "...", "record": {...}}
+    record = specific_log_json.get("record", specific_log_json)  # Fall back to top-level if no "record" key
+    message = record.get("message", specific_log_json.get("text", ""))
+    
+    assert "[Mirrored to " in message
+    assert "Test VE for specific file" in record.get("exception", {}).get("value", "")
+    assert record["extra"]["error_code"] == "VE001" # Metadata should also be in specific log
+    assert record["extra"]["source"] == "validation"
 
 
 def test_handle_exception_default_behavior_override(config_with_behaviors, captured_logs, tmp_path):
@@ -389,9 +396,14 @@ def test_handle_exception_default_behavior_override(config_with_behaviors, captu
     lines = default_log_content.strip().split('\n')
     assert len(lines) > 0
     default_log_json = json.loads(lines[0])
-    assert "[Mirrored to " in default_log_json["message"]
-    assert "Test KeyError for default behavior" in default_log_json["exception"]["value"]
-    assert default_log_json["extra"]["default_applied"] is True
+    
+    # When loguru serializes, the structure is {"text": "...", "record": {...}}
+    record = default_log_json.get("record", default_log_json)  # Fall back to top-level if no "record" key
+    message = record.get("message", default_log_json.get("text", ""))
+    
+    assert "[Mirrored to " in message
+    assert "Test KeyError for default behavior" in record.get("exception", {}).get("value", "")
+    assert record["extra"]["default_applied"] is True
 
 
 def test_handle_exception_behavior_only_metadata_no_specific_log(config_with_behaviors, captured_logs, tmp_path):
@@ -491,7 +503,17 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         assert dummy_module_with_classes.module_level_func_good() == "module_good"
         with pytest.raises(EnvironmentError, match="Bad environment at module level"):
             dummy_module_with_classes.module_level_func_bad()
-        mock_handle_exception.assert_any_call(config, pytest.approx(EnvironmentError("Bad environment at module level"), abs=lambda x,y: type(x)==type(y) and x.args==y.args))
+        
+        # Check that handle_exception was called with config and the EnvironmentError
+        calls = mock_handle_exception.call_args_list
+        module_level_call_found = False
+        for call in calls:
+            if len(call[0]) == 2:
+                cfg, exc = call[0]
+                if cfg == config and isinstance(exc, EnvironmentError) and str(exc) == "Bad environment at module level":
+                    module_level_call_found = True
+                    break
+        assert module_level_call_found, "handle_exception not called with expected EnvironmentError"
 
         call_count_after_module = mock_handle_exception.call_count
 
@@ -502,7 +524,17 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         instance_bad = dummy_module_with_classes.MyTestClass(val=-5)
         with pytest.raises(ValueError, match="Negative value in instance_method_bad"):
             instance_bad.instance_method_bad()
-        mock_handle_exception.assert_any_call(config, pytest.approx(ValueError("Negative value in instance_method_bad"), abs=lambda x,y: type(x)==type(y) and x.args==y.args))
+        
+        # Check that handle_exception was called with config and the ValueError
+        instance_call_found = False
+        calls_after_module = mock_handle_exception.call_args_list[call_count_after_module:]  # Get updated call list
+        for call in calls_after_module:
+            if len(call[0]) == 2:
+                cfg, exc = call[0]
+                if cfg == config and isinstance(exc, ValueError) and str(exc) == "Negative value in instance_method_bad":
+                    instance_call_found = True
+                    break
+        assert instance_call_found, "handle_exception not called with expected ValueError"
 
         call_count_after_instance = mock_handle_exception.call_count
         assert call_count_after_instance > call_count_after_module
@@ -511,7 +543,17 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         assert dummy_module_with_classes.MyTestClass.static_method_good() == "static_good"
         with pytest.raises(TypeError, match="Bad type in static_method_bad"):
             dummy_module_with_classes.MyTestClass.static_method_bad()
-        mock_handle_exception.assert_any_call(config, pytest.approx(TypeError("Bad type in static_method_bad"), abs=lambda x,y: type(x)==type(y) and x.args==y.args))
+        
+        # Check that handle_exception was called with config and the TypeError
+        static_call_found = False
+        calls_after_static = mock_handle_exception.call_args_list[call_count_after_instance:]
+        for call in calls_after_static:
+            if len(call[0]) == 2:
+                cfg, exc = call[0]
+                if cfg == config and isinstance(exc, TypeError) and str(exc) == "Bad type in static_method_bad":
+                    static_call_found = True
+                    break
+        assert static_call_found, "handle_exception not called with expected TypeError"
 
         call_count_after_static = mock_handle_exception.call_count
         assert call_count_after_static > call_count_after_instance
@@ -520,7 +562,17 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         assert dummy_module_with_classes.MyTestClass.class_method_good() == "class_good_MyTestClass"
         with pytest.raises(AttributeError, match="Bad attribute in class_method_bad for MyTestClass"):
             dummy_module_with_classes.MyTestClass.class_method_bad()
-        mock_handle_exception.assert_any_call(config, pytest.approx(AttributeError("Bad attribute in class_method_bad for MyTestClass"), abs=lambda x,y: type(x)==type(y) and x.args==y.args))
+        
+        # Check that handle_exception was called with config and the AttributeError
+        class_call_found = False
+        calls_after_class = mock_handle_exception.call_args_list[call_count_after_static:]
+        for call in calls_after_class:
+            if len(call[0]) == 2:
+                cfg, exc = call[0]
+                if cfg == config and isinstance(exc, AttributeError) and str(exc) == "Bad attribute in class_method_bad for MyTestClass":
+                    class_call_found = True
+                    break
+        assert class_call_found, "handle_exception not called with expected AttributeError"
 
         call_count_after_class = mock_handle_exception.call_count
         assert call_count_after_class > call_count_after_static
@@ -529,7 +581,17 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         another_instance = dummy_module_with_classes.AnotherClass()
         with pytest.raises(ZeroDivisionError, match="Dividing by zero in AnotherClass"):
             another_instance.another_method_bad()
-        mock_handle_exception.assert_any_call(config, pytest.approx(ZeroDivisionError("Dividing by zero in AnotherClass"), abs=lambda x,y: type(x)==type(y) and x.args==y.args))
+        
+        # Check that handle_exception was called with config and the ZeroDivisionError
+        another_call_found = False
+        calls_after_another = mock_handle_exception.call_args_list[call_count_after_class:]
+        for call in calls_after_another:
+            if len(call[0]) == 2:
+                cfg, exc = call[0]
+                if cfg == config and isinstance(exc, ZeroDivisionError) and str(exc) == "Dividing by zero in AnotherClass":
+                    another_call_found = True
+                    break
+        assert another_call_found, "handle_exception not called with expected ZeroDivisionError"
 
         assert mock_handle_exception.call_count > call_count_after_class
 
@@ -542,7 +604,7 @@ def test_module_exception_handler_wraps_class_methods(dynel_config_instance, dum
         with patch("src.dynel.exception_handling.logger.debug", mock_logger_debug):
              module_exception_handler(config, dummy_module_with_classes) # re-run with debug on
 
-        mock_logger_debug.assert_any_call("Wrapped function/staticmethod: %s in module %s", "module_level_func_good", "dummy_module_with_classes_for_dynel_test")
+        mock_logger_debug.assert_any_call("Wrapped function: %s in module %s", "module_level_func_good", "dummy_module_with_classes_for_dynel_test")
         mock_logger_debug.assert_any_call("Wrapped method: %s.%s in module %s", "MyTestClass", "instance_method_good", "dummy_module_with_classes_for_dynel_test")
         mock_logger_debug.assert_any_call("Wrapped method: %s.%s in module %s", "MyTestClass", "static_method_good", "dummy_module_with_classes_for_dynel_test")
         mock_logger_debug.assert_any_call("Wrapped method: %s.%s in module %s", "MyTestClass", "class_method_good", "dummy_module_with_classes_for_dynel_test")

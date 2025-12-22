@@ -70,6 +70,7 @@ def configure_logging(config: DynelConfig):
     
     # Remove only DynEL-specific handlers
     for handler_id in _dynel_handler_ids:
+        logger.remove(handler_id)
         try:
             # Only attempt to remove if handler_id is a valid integer
             if isinstance(handler_id, int):

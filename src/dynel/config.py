@@ -227,10 +227,10 @@ class DynelConfig:
 
             # (Future: Add validation for 'custom_callback' or other behaviors here)
 
-            if current_behavior_actions:
-                # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
-                parsed_behaviors[behavior_key] = current_behavior_actions
-            else:
+            # Always add the behavior key, even if no valid actions were found
+            # This helps with testing and debugging to show which behaviors were attempted
+            parsed_behaviors[behavior_key] = current_behavior_actions
+            if not current_behavior_actions:
                 logger.info(f"No valid actions found for behavior key '{behavior_key}' under function '{func_key}'.")
 
         return parsed_behaviors
@@ -243,6 +243,26 @@ class DynelConfig:
                 continue
             exception_class_val: Any = None
             try:
+                # First try to get from builtins
+                # __builtins__ can be either a module or a dict depending on context
+                import builtins
+                exception_class_val = getattr(builtins, exception_str, None)
+                
+                # Check if we got a valid exception class from builtins
+                if exception_class_val and isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException):
+                    # Successfully loaded from builtins, use it
+                    pass
+                elif '.' in exception_str:
+                    # Try loading from module if it has a dot notation
+                    module_name, class_name = exception_str.rsplit('.', 1)
+                    module = importlib.import_module(module_name)
+                    exception_class_val = getattr(module, class_name)
+                    # Validate the loaded class
+                    if not (isinstance(exception_class_val, type) and issubclass(exception_class_val, BaseException)):
+                        raise TypeError(f"'{exception_str}' is not an Exception subclass.")
+                else:
+                    # Not in builtins and no module path, can't load
+                    raise TypeError(f"'{exception_str}' is not an Exception subclass.")
                 # __builtins__ can be either a dict or a module depending on context
                 # In __main__ it's typically a module, but in imported modules it can be a dict
                 if isinstance(__builtins__, dict):  # type: ignore

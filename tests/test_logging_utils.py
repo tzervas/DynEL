@@ -107,7 +107,7 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
     mock_caller_frame_obj_for_log_test.f_locals = {"alpha": 1, "beta": "two"}
 
     # Patch inspect within the exception_handling module
-    with patch("src.dynel.exception_handling.inspect") as mock_dynel_inspect:
+    with patch("src.dynel.exception_handling.inspect.stack") as mock_stack:
         mock_caller_frame_info_tuple_for_log_test = (
             mock_caller_frame_obj_for_log_test,
             "test_file.py",
@@ -116,7 +116,7 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
             ["some_code"],
             0,
         )
-        mock_dynel_inspect.stack.return_value = [
+        mock_stack.return_value = [
             Mock(),
             mock_caller_frame_info_tuple_for_log_test
         ]
@@ -125,6 +125,10 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
             raise error_to_raise
         except IndexError as e:
             handle_exception(config, e) # This uses the globally configured logger (dynel_logger_instance)
+    
+    # Flush pending logs to ensure they're written to files
+    from loguru import logger
+    logger.complete()
 
     # Verify text log content
     assert log_file_txt.exists()

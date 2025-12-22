@@ -81,15 +81,30 @@ def handle_exception(config: DynelConfig, error: Exception) -> None:
                 exception_type_name = type(error).__name__ # More robust: error.__class__.__name__
                 # Also consider fully qualified name if needed for config: f"{error.__class__.__module__}.{error.__class__.__name__}"
                 # For now, simple name, assuming config uses simple names for specific overrides
-                specific_behaviors = function_config.get('behaviors', {}).get(exception_type_name, {})
+                behaviors_dict = function_config.get('behaviors', {})
+                if exception_type_name in behaviors_dict:
+                    # Explicit specific behavior exists (even if empty)
+                    specific_behaviors = behaviors_dict[exception_type_name]
+                else:
+                    # No specific behavior for this exception type
+                    specific_behaviors = None
 
                 if final_custom_message:
                     log_message += f" - Custom Message: {final_custom_message}"
                 break # Found the matching configured exception type
 
     # Apply default behaviors first, then override with specific behaviors
-    # Ensure specific_behaviors is a dict if None
-    applied_behaviors: dict[str, Any] = {**default_behaviors, **(specific_behaviors if specific_behaviors is not None else {})}
+    # If there's a specific behavior for this exception type, use it exclusively (don't merge with default)
+    # Otherwise, use default behaviors
+    if specific_behaviors is not None and specific_behaviors:
+        # Specific behavior exists and is not empty, use it exclusively
+        applied_behaviors: dict[str, Any] = specific_behaviors
+    elif specific_behaviors is not None:
+        # Specific behavior exists but is empty, don't apply any behaviors
+        applied_behaviors = {}
+    else:
+        # No specific behavior, use default
+        applied_behaviors = default_behaviors
 
     if final_tags:
         custom_context_dict["tags"] = final_tags
@@ -208,50 +223,56 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
             wrapped_member = logger.catch(onerror=actual_onerror_handler, reraise=True)(obj)
             setattr(module, name, wrapped_member)
             if config.DEBUG_MODE:
-                logger.debug("Wrapped function/staticmethod: %s in module %s", name, module_name_for_log)
+                logger.debug("Wrapped function: %s in module %s", name, module_name_for_log)
 
         elif inspect.isclass(obj):
             # Iterate through members of the class
-            for class_attr_name, class_attr_value in inspect.getmembers(obj):
-                # Check for functions (potential instance methods, class methods, static methods)
-                # inspect.isfunction: for regular methods, staticmethods (if not yet bound by decorator)
-                # inspect.ismethod: for classmethods (already bound by @classmethod)
-                # We need to be careful not to double-wrap or misinterpret.
-                # logger.catch should work on callables.
-
-                if callable(class_attr_value):
-                    # Distinguish between staticmethod, classmethod, and regular instance method
-                    # For staticmethod and classmethod, they might appear as functions if accessed via __dict__
-                    # or as methods if accessed via getattr(obj, class_attr_name) after class creation.
-                    # We are iterating via inspect.getmembers(obj) where obj is the class itself.
-
-                    original_member = class_attr_value
-
-                    # If it's a staticmethod or classmethod, it's already a descriptor.
-                    # We need to wrap the underlying function if possible.
-                    if isinstance(original_member, (staticmethod, classmethod)):
-                        # The actual function is in __func__
-                        actual_func = original_member.__func__
-                        wrapped_func = logger.catch(onerror=actual_onerror_handler, reraise=True)(actual_func)
-                        # Re-apply the original decorator type
-                        if isinstance(original_member, staticmethod):
-                            wrapped_member = staticmethod(wrapped_func)
-                        else: # classmethod
-                            wrapped_member = classmethod(wrapped_func)
-                    elif inspect.isfunction(original_member): # Regular function defined in class (becomes instance method)
-                        wrapped_member = logger.catch(onerror=actual_onerror_handler, reraise=True)(original_member)
-                    else:
-                        # Not a function, staticmethod, or classmethod we can easily wrap (e.g. already bound method, other callable object)
-                        # Could also be a C-implemented method, which inspect.isfunction might miss.
-                        # For PoC, we'll skip these more complex cases.
-                        if config.DEBUG_MODE:
-                            logger.debug("Skipping non-standard callable: %s.%s of type %s", obj.__name__, class_attr_name, type(original_member).__name__)
-                        continue
-
+            # We need to use __dict__ to properly detect staticmethod and classmethod descriptors
+            for class_attr_name in dir(obj):
+                if class_attr_name.startswith('_'):
+                    # Skip private/magic methods for simplicity
+                    continue
+                
+                # Get from __dict__ to see the actual descriptor
+                original_descriptor = obj.__dict__.get(class_attr_name)
+                if original_descriptor is None:
+                    # Not in this class's __dict__ (might be inherited)
+                    continue
+                
+                # Check if it's a staticmethod or classmethod descriptor
+                if isinstance(original_descriptor, staticmethod):
+                    # Wrap the underlying function
+                    actual_func = original_descriptor.__func__
+                    wrapped_func = logger.catch(onerror=actual_onerror_handler, reraise=True)(actual_func)
+                    wrapped_member = staticmethod(wrapped_func)
                     try:
                         setattr(obj, class_attr_name, wrapped_member)
                         if config.DEBUG_MODE:
                             logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
-                    except Exception as e: # Catch potential errors like trying to set on built-in types
+                    except Exception as e:
+                        if config.DEBUG_MODE:
+                            logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
+                
+                elif isinstance(original_descriptor, classmethod):
+                    # Wrap the underlying function
+                    actual_func = original_descriptor.__func__
+                    wrapped_func = logger.catch(onerror=actual_onerror_handler, reraise=True)(actual_func)
+                    wrapped_member = classmethod(wrapped_func)
+                    try:
+                        setattr(obj, class_attr_name, wrapped_member)
+                        if config.DEBUG_MODE:
+                            logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    except Exception as e:
+                        if config.DEBUG_MODE:
+                            logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
+                
+                elif inspect.isfunction(original_descriptor):
+                    # Regular instance method
+                    wrapped_member = logger.catch(onerror=actual_onerror_handler, reraise=True)(original_descriptor)
+                    try:
+                        setattr(obj, class_attr_name, wrapped_member)
+                        if config.DEBUG_MODE:
+                            logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
+                    except Exception as e:
                         if config.DEBUG_MODE:
                             logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
