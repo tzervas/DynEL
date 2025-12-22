@@ -108,7 +108,6 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
 
     # Patch inspect within the exception_handling module
     with patch("src.dynel.exception_handling.inspect.stack") as mock_stack:
-    with patch("src.dynel.exception_handling.inspect") as mock_dynel_inspect:
         mock_caller_frame_info_tuple_for_log_test = (
             mock_caller_frame_obj_for_log_test,
             "test_file.py",
@@ -118,7 +117,6 @@ def test_log_file_output_formats(tmp_path, monkeypatch):
             0,
         )
         mock_stack.return_value = [
-        mock_dynel_inspect.stack.return_value = [
             Mock(),
             mock_caller_frame_info_tuple_for_log_test
         ]

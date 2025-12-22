@@ -229,8 +229,6 @@ class DynelConfig:
 
             # Always add the behavior key, even if no valid actions were found
             # This helps with testing and debugging to show which behaviors were attempted
-            parsed_behaviors[behavior_key] = current_behavior_actions
-            if not current_behavior_actions:
             if current_behavior_actions:
                 # behavior_key here can be an exception name string (e.g., "ValueError") or "default"
                 parsed_behaviors[behavior_key] = current_behavior_actions

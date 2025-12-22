@@ -308,7 +308,6 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
                         setattr(obj, class_attr_name, wrapped_member)
                         if config.DEBUG_MODE:
                             logger.debug("Wrapped method: %s.%s in module %s", obj.__name__, class_attr_name, module_name_for_log)
-                    except Exception as e:
                     except Exception as e: # Catch potential errors like trying to set on built-in types
                         if config.DEBUG_MODE:
                             logger.error("Failed to wrap method %s.%s: %s", obj.__name__, class_attr_name, e)
