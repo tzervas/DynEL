@@ -208,7 +208,7 @@ def module_exception_handler(config: DynelConfig, module: Any) -> None:
             wrapped_member = logger.catch(onerror=actual_onerror_handler, reraise=True)(obj)
             setattr(module, name, wrapped_member)
             if config.DEBUG_MODE:
-                logger.debug("Wrapped function/staticmethod: %s in module %s", name, module_name_for_log)
+                logger.debug("Wrapped function: %s in module %s", name, module_name_for_log)
 
         elif inspect.isclass(obj):
             # Iterate through members of the class
