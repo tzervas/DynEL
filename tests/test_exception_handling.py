@@ -239,6 +239,7 @@ def test_module_exception_handler_debug_logging(dynel_config_instance, dummy_mod
                 assert call_arg[0][1] not in ["_a_private_variable", "SomeClass"]
 
 
+
 # --- Tests for New Behavior Implementations ---
 
 @pytest.fixture

@@ -83,7 +83,7 @@ def test_configure_logging(capsys, config_params, expected_params):
             assert args_file_log[0] == "dynel.log"
             assert kwargs_file_log['level'] == expected_params['file_level']
             assert kwargs_file_log['rotation'] == "10 MB"
-            assert kwargs_file_log['retention'] == "5 files"
+            assert kwargs_file_log['retention'] == 5
             assert kwargs_file_log['encoding'] == "utf8"
             assert kwargs_file_log.get('serialize') is not True
 
@@ -93,7 +93,7 @@ def test_configure_logging(capsys, config_params, expected_params):
             assert kwargs_file_json['level'] == expected_params['file_level']
             assert kwargs_file_json['serialize'] is True
             assert kwargs_file_json['rotation'] == "10 MB"
-            assert kwargs_file_json['retention'] == "5 files"
+            assert kwargs_file_json['retention'] == 5
             assert kwargs_file_json['encoding'] == "utf8"
 
             # Verify info message
@@ -119,6 +119,11 @@ def test_colorize_configuration(isatty_value, config_colorize, expected_colorize
         with patch('src.dynel.dynel.logger') as mock_logger:
             # Make the mock return proper integer IDs
             mock_logger.add.side_effect = [1, 2, 3]  # Return sequential integers for each add() call
+    with patch('sys.stderr.isatty', return_value=isatty_value):
+        config = DynelConfig(colorize=config_colorize)
+        with patch('src.dynel.dynel.logger') as mock_logger:
+            # Configure return values for mocked logger.add()
+            mock_logger.add.return_value = 1  # Return a valid integer handler ID
             configure_logging(config)
             # Verify colorize setting was passed correctly to console sink
             _, kwargs = mock_logger.add.call_args_list[0]
@@ -126,6 +131,14 @@ def test_colorize_configuration(isatty_value, config_colorize, expected_colorize
     
     # Clear the global handler list to avoid interference with other tests
     dynel_module._dynel_handler_ids.clear()
+
+    # Test that actual logging configuration works (no longer a placeholder)
+    config = DynelConfig(context_level="minimal", debug=False, formatting=True)
+    # Since configure_logging is now implemented, it should work without warnings
+    configure_logging(config)
+    # Verify that handler IDs are being tracked
+    from src.dynel.dynel import _dynel_handler_ids
+    assert len(_dynel_handler_ids) == 3  # console + dynel.log + dynel.json
 
 def test_module_exception_handler_placeholder(capsys, recwarn): # Keep recwarn for now, might remove if not used
     """Test the placeholder module_exception_handler function and warning."""
