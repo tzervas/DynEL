@@ -7,7 +7,7 @@ name = "dynel"
 version = "0.1.0" # Will be updated by Hatchling/release process later
 description = "DynEL: A dynamic and configurable logging and error-handling utility for Python applications."
 readme = "README.md"
-requires-python = ">=3.13, <4.0"
+requires-python = ">=3.10, <4.0"  # Temporarily set to 3.10+ for broader compatibility; plan to migrate to 3.13+ when environment support improves
 license = {text = "MIT"}
 license-files = ["LICENSE"] # Added as per spec
 authors = [
@@ -64,7 +64,7 @@ ignore = ["E501"] # Handled by black
 line-length = 88
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.10"  # Set to minimum supported version for broadest compatibility
 warn_return_any = true
 warn_unused_configs = true
 # Add other mypy settings as needed, e.g., strict = true or per-module settings
