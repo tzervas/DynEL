@@ -1,5 +1,10 @@
 # DynEL: Dynamic Error Logging Module
 
+<!-- FLEET-BADGES:BEGIN -->
+[![CI](https://github.com/tzervas/DynEL/actions/workflows/fleet-ci.yml/badge.svg?branch=main)](https://github.com/tzervas/DynEL/actions/workflows/fleet-ci.yml?query=branch%3Amain)
+[![Security](https://github.com/tzervas/DynEL/actions/workflows/fleet-security.yml/badge.svg?branch=main)](https://github.com/tzervas/DynEL/actions/workflows/fleet-security.yml?query=branch%3Amain)
+<!-- FLEET-BADGES:END -->
+
 🚀 **Project Status**: In active development. All components subject to change. Contributions and feedback welcome.
 
 🎯 **Intent**: Provide a flexible and powerful logging and error-handling solution for Python applications, with seamless integration into projects like PeSPr.
